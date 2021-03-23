@@ -86,7 +86,7 @@ const fetch_candles = (symbol, interval, options={}) => {
 	});
 }
 
-const ws_candles = (symbol, interval, onUpdate) => {
+const listen_candles_stream = (symbol, interval, onUpdate=()=>{}, onOpen=()=>{}) => {
 	binance_client.websockets.candlesticks(symbol, interval, (tick) => {
 		const { 
 			E: event_time,
@@ -98,7 +98,14 @@ const ws_candles = (symbol, interval, onUpdate) => {
 		} = tick;
 
 		onUpdate(open, close, event_time, isFinal);
-	});
+	}, onOpen);
+}
+
+const listen_mini_ticker = (symbol, onUpdate=()=>{}, onOpen=()=>{}) => {
+	binance_client.websockets.miniTicker(markets => {
+		const mini_tick = markets[symbol];
+		if(mini_tick) onUpdate(mini_tick);
+	}, onOpen);
 }
 
 const get_price = (symbol) => {
@@ -290,9 +297,14 @@ const spot_market_sell = (symbol, price, quantity, test=true, onSuccess, onError
 }
 
 exports.authenticate_user = authenticate_user;
+
 exports.fetch_exchange_info = fetch_exchange_info;
 exports.fetch_candles = fetch_candles;
-exports.ws_candles = ws_candles;
-exports.calculate_buy_quantity = calculate_buy_quantity;
+
 exports.spot_market_buy = spot_market_buy;
 exports.spot_market_sell = spot_market_sell;
+
+exports.listen_candles_stream = listen_candles_stream;
+exports.listen_mini_ticker = listen_mini_ticker;
+
+exports.calculate_buy_quantity = calculate_buy_quantity;
