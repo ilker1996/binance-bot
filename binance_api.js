@@ -86,26 +86,38 @@ const fetch_candles = (symbol, interval, options={}) => {
 	});
 }
 
-const listen_candles_stream = (symbol, interval, onUpdate=()=>{}, onOpen=()=>{}) => {
+const listen_candles_stream = (symbol, interval, onUpdate=()=>{}, onStreamStart=()=>{}) => {
 	binance_client.websockets.candlesticks(symbol, interval, (tick) => {
 		const { 
 			E: event_time,
+			e: event_type,
+			s: symbol,
 			k: { 
-				o: open, 
-				c: close, 
-				x: isFinal 
+				o: open,
+				c: close,
+				l: low,
+				h: high,
+				x: isFinal,
+				v: volume,
+				n: trades,
+				i: interval,
+				q: quoteVolume,
+				V: buyVolume,
+				Q: quoteBuyVolume,
 			}
 		} = tick;
 
-		onUpdate(open, close, event_time, isFinal);
-	}, onOpen);
+		onUpdate(parseFloat(open), parseFloat(close), parseFloat(low), parseFloat(high), event_time, isFinal);
+
+	}, onStreamStart);
 }
 
-const listen_mini_ticker = (symbol, onUpdate=()=>{}, onOpen=()=>{}) => {
+const listen_mini_ticker = (symbol, onUpdate=()=>{}, onStreamStart=()=>{}) => {
 	binance_client.websockets.miniTicker(markets => {
 		const mini_tick = markets[symbol];
 		if(mini_tick) onUpdate(mini_tick);
-	}, onOpen);
+		
+	}, onStreamStart);
 }
 
 const get_price = (symbol) => {
@@ -207,93 +219,85 @@ const calculate_buy_quantity = (symbol, trading_currency="USDT", balance_limit=1
 }
 
 // Spot market buy
-const spot_market_buy = (symbol, price, quantity, test=true, onSuccess, onError) => {
-	if(test) {
-		onSuccess(price, quantity);
-	} else {
-		binance_client.marketBuy(symbol, quantity, (error, response) => {
-			if(error) {
-				onError(error.body);
-			} else if(response) {
-				// Sample response
-				// {
-				// 	symbol: 'OCEANUSDT',
-				// 	orderId: 1,
-				// 	orderListId: -1,
-				// 	clientOrderId: 'asg7asg9ag9',
-				// 	transactTime: 1,
-				// 	price: '0.00000000',
-				// 	origQty: '8.00000000',
-				// 	executedQty: '8.00000000',
-				// 	cummulativeQuoteQty: '10.69200000',
-				// 	status: 'FILLED',
-				// 	timeInForce: 'GTC',
-				// 	type: 'MARKET',
-				// 	side: 'BUY',
-				// 	fills: [
-				// 	  {
-				// 		price: '1.33650000',
-				// 		qty: '8.00000000',
-				// 		commission: '0.00800000',
-				// 		commissionAsset: 'OCEAN',
-				// 		tradeId: 1
-				// 	  }
-				// 	]
-				// }
+const spot_market_buy = (symbol, price, quantity, onSuccess, onError) => {
+	binance_client.marketBuy(symbol, quantity, (error, response) => {
+		if(error) {
+			onError(error.body);
+		} else if(response) {
+			// Sample response
+			// {
+			// 	symbol: 'OCEANUSDT',
+			// 	orderId: 1,
+			// 	orderListId: -1,
+			// 	clientOrderId: 'asg7asg9ag9',
+			// 	transactTime: 1,
+			// 	price: '0.00000000',
+			// 	origQty: '8.00000000',
+			// 	executedQty: '8.00000000',
+			// 	cummulativeQuoteQty: '10.69200000',
+			// 	status: 'FILLED',
+			// 	timeInForce: 'GTC',
+			// 	type: 'MARKET',
+			// 	side: 'BUY',
+			// 	fills: [
+			// 	  {
+			// 		price: '1.33650000',
+			// 		qty: '8.00000000',
+			// 		commission: '0.00800000',
+			// 		commissionAsset: 'OCEAN',
+			// 		tradeId: 1
+			// 	  }
+			// 	]
+			// }
 
-				const actual_buying_price = response.fills[0]?.price || price ;
-				const actual_quantity = response.fills[0]?.qty || quantity ;
+			const actual_buying_price = response.fills[0]?.price || price ;
+			const actual_quantity = response.fills[0]?.qty || quantity ;
 
-				onSuccess(actual_buying_price, actual_quantity);
-			}
-		});
-	}
+			onSuccess(actual_buying_price, actual_quantity);
+		}
+	});
 }
 
 // Spot market sell
-const spot_market_sell = (symbol, price, quantity, test=true, onSuccess, onError) => {
-	if(test) {
-		onSuccess(price, quantity);
-	} else {
-		binance_client.marketSell(symbol, quantity, (error, response) => {
-			if(error) {
-				onError(error);
-			} else if(response) {
-				// Sample response ( It is not updated! Try it)
-				// {
-				// 	symbol: 'OCEANUSDT',
-				// 	orderId: 1,
-				// 	orderListId: -1,
-				// 	clientOrderId: 'as521agags',
-				// 	transactTime: 1,
-				// 	price: '0.00000000',
-				// 	origQty: '8.00000000',
-				// 	executedQty: '8.00000000',
-				// 	cummulativeQuoteQty: '10.69200000',
-				// 	status: 'FILLED',
-				// 	timeInForce: 'GTC',
-				// 	type: 'MARKET',
-				// 	side: 'BUY',
-				// 	fills: [
-				// 	  {
-				// 		price: '1.33650000',
-				// 		qty: '8.00000000',
-				// 		commission: '0.00800000',
-				// 		commissionAsset: 'OCEAN',
-				// 		tradeId: 1
-				// 	  }
-				// 	]
-				// }
+const spot_market_sell = (symbol, price, quantity, onSuccess, onError) => {
+	binance_client.marketSell(symbol, quantity, (error, response) => {
+		if(error) {
+			onError(error);
+		} else if(response) {
+			// Sample response ( It is not updated! Try it)
+			// {
+			// 	symbol: 'OCEANUSDT',
+			// 	orderId: 1,
+			// 	orderListId: -1,
+			// 	clientOrderId: 'as521agags',
+			// 	transactTime: 1,
+			// 	price: '0.00000000',
+			// 	origQty: '8.00000000',
+			// 	executedQty: '8.00000000',
+			// 	cummulativeQuoteQty: '10.69200000',
+			// 	status: 'FILLED',
+			// 	timeInForce: 'GTC',
+			// 	type: 'MARKET',
+			// 	side: 'BUY',
+			// 	fills: [
+			// 	  {
+			// 		price: '1.33650000',
+			// 		qty: '8.00000000',
+			// 		commission: '0.00800000',
+			// 		commissionAsset: 'OCEAN',
+			// 		tradeId: 1
+			// 	  }
+			// 	]
+			// }
 
-				// const { 
-				// 	price: selling_price,
-				// 	qty: selling_quantity,
-				// } = response.fills[0];
+			// const { 
+			// 	price: selling_price,
+			// 	qty: selling_quantity,
+			// } = response.fills[0];
 
-				onSuccess(price, quantity);
-			}
-		});
-	}
+			onSuccess(price, quantity);
+		}
+	});
 }
 
 exports.authenticate_user = authenticate_user;
