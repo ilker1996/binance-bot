@@ -5,27 +5,18 @@ The bot is fully written in Javascript.
 
 # Features
 
-- Automated buy/sell order creation based on the EMA indicator.
-
-The bot relies only in ema scalping indicator, so it's quite simple.
+- Automated buy/sell order creation based on the ema or sma crossover.
 
 # Future development
 
 Here are some points that deserve attention:
 
 - More consideration with the profit and stop-loss price calculations (multipliers and higher limit increase ratio)
-- Implement ema signals bases on "1m" interval candles for closing real-time experience
 
 # Dependencies
 
 - [NodeJS](https://nodejs.org/en/) to run Javascript outside a browser
 - [npm Dependency Manager](https://www.npmjs.com/)
-
-The bot depends on the following Node modules:
-
-- "node-binance-api": "^0.12.5",
-- "technicalindicators": "^2.0.5",
-- "winston": "^3.3.3"
 
 # Setup
 
@@ -34,10 +25,6 @@ Clone the repository with HTTPS:
 ```
 $ git clone https://github.com/ilker1996/binance_bot.git
 ```
-
-Or with SSH:
-
-`$ git clone git@github.com:ilker1996/binance_bot.git`
 
 Then move into the cloned directory:
 
@@ -54,12 +41,8 @@ $ npm install
 Inside the project root directory (/binance_bot):
 
 ```
-$ node bot.js
+$ node bot.js <coin-pair>
 ```
-
-# Contributions
-
-All contributions and comments are welcome!
 
 # License
 

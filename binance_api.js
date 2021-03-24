@@ -47,7 +47,6 @@ const fetch_exchange_info = () => {
 	});
 }
 
-// Adjust the candles format for the indicators
 const fetch_candles = (symbol, interval, options={}) => {
 	return new Promise((resolve, reject) => {
 		binance_client.candlesticks(symbol, interval, (error, candles, symbol) => {
@@ -124,7 +123,7 @@ const get_price = (symbol) => {
 	return new Promise((resolve, reject) => {
 		binance_client.prices(symbol, (error, prices) => {
 			if (error) {
-				return reject(error.body);
+				return reject(error);
 			} else {
 				const result = parseFloat(prices[symbol]);
 				return resolve(result);
@@ -137,7 +136,7 @@ const get_available_balance = (currency="USDT") => {
 	return new Promise((resolve, reject) => {
 		binance_client.balance((error, balances) => {
 			if (error) {
-				return reject(error.body);
+				return reject(error);
 			} else {
 				const result = parseFloat(balances[currency].available);
 				return resolve(result);
@@ -207,10 +206,10 @@ const calculate_buy_quantity = (symbol, trading_currency="USDT", balance_limit=1
 					});
 				}, 
 				(error) => {
-					return reject("Error occured fetching the price of" + symbol + " : " + error);
+					return reject("Error occured fetching the price of " + symbol + " : " + error);
 				}
 			).catch((error) => {
-				return reject("Error occured fetching the price of" + symbol + " : " + error);
+				return reject("Error occured fetching the price of " + symbol + " : " + error);
 			});
 		} else {
 			return reject(buying_balance + " " + trading_currency + " " + "is below to minimum balance to purchase");

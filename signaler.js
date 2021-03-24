@@ -21,7 +21,7 @@ class Signaler {
         this.candles = candles;
     }
 
-    add_candle(latest_candle) {
+    add_candle(open, close, low, high, event_time) {
         this.candles.open_prices.shift();
         this.candles.close_prices.shift();
         this.candles.low_prices.shift();
@@ -29,12 +29,12 @@ class Signaler {
         this.candles.open_times.shift();
         this.candles.close_times.shift();
         
-        this.candles.open_prices.push(Number(latest_candle.open));
-        this.candles.close_prices.push(Number(latest_candle.close));
-        this.candles.low_prices.push(Number(latest_candle.low));
-        this.candles.high_prices.push(Number(latest_candle.high));
+        this.candles.open_prices.push(Number(open));
+        this.candles.close_prices.push(Number(close));
+        this.candles.low_prices.push(Number(low));
+        this.candles.high_prices.push(Number(high));
         this.candles.open_times.push(this.candles.close_times.last() + 1);
-        this.candles.close_times.push(latest_candle.event_time);
+        this.candles.close_times.push(event_time);
     }
 
     reset() {
@@ -61,11 +61,12 @@ class Signaler {
             if(buy_signal) this.buyer.buy(this.pair, (price, quantity) => {
                 this.logger.info("Market Buy - price : %f , quantity : %f", price, quantity);
                 this.tracker.add_track(price, quantity);
+                this.wait_for_next_candle = true;
             });
         }
 
         if(isFinal) {
-            this.add_candle({open, close, low, high, event_time});
+            this.add_candle(open, close, low, high, event_time);
             this.reset();
         }
     }

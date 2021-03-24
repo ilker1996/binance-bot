@@ -1,12 +1,15 @@
+const connectivity = require('connectivity');
+const retry = require('async-retry');
+
 const binance_api = require('./binance_api');
-const indicators = require('./indicators')
+const indicators = require('./indicators');
 
 const { backtest } = require('./backtest');
 const { global_logger, add_logger } = require('./logger');
 const { Signaler } = require('./signaler');
-const { Tracker } = require('./tracker')
-const { Buyer } = require('./buyer')
-const { Seller } = require('./seller')
+const { Tracker } = require('./tracker');
+const { Buyer } = require('./buyer');
+const { Seller } = require('./seller');
 
 const trade_type = {
 	SPOT: "spot",
@@ -36,25 +39,29 @@ const PROFIT_MULTIPLIER = 1.025;
 const STOP_LOSS_MULTIPLIER = 0.99;
 
 function start_spot_trade(symbol, interval, logger, tracker, signaler) {
-	let candles = {};
+	let candles = null;
 
 	const onStreamStart = async () => {
-		logger.info("Fetching latest candles for interval %s", interval);
+		candles = null; // Reset candles
 
-		try {
-			candles = await binance_api.fetch_candles(symbol, interval);
+		logger.info("Fetching candles for interval %s", interval);
+
+		// Retry 10 times with 2 seconds intervals
+		try{
+			candles = await retry(async bail => await binance_api.fetch_candles(symbol, interval), {maxTimeout : 2000, retries: 10});
 			signaler.set_candles(candles);
-		} catch (error) {
+		} catch(error) {
 			logger.error(error);
 		}
 
-		logger.info("Subscribed to candlestick stream of pair : %s", symbol);
+		logger.info("Subscribed to %s candle stream", symbol);
 	}
 	
 	binance_api.listen_candles_stream(symbol, interval, (open, close, low, high, event_time, isFinal) => {
-		if(candles?.close_prices?.length > 0) signaler.feed(open, close, low, high, event_time, isFinal)
-
-		tracker.feed(close);
+		if(candles) {		
+			signaler.feed(open, close, low, high, event_time, isFinal);
+			tracker.feed(close);
+		}
 	}, onStreamStart);
 };
 
@@ -91,6 +98,12 @@ function run(test=true) {
 	.catch((error) => global_logger.error(error));
 }
 
-if(SESSION_TYPE == session_type.BACKTEST) backtest(COIN_PAIR, CANDLE_INTERVAL, TAKE_PROFIT_MULTIPLIER, PROFIT_MULTIPLIER, STOP_LOSS_MULTIPLIER);
-else if(SESSION_TYPE == session_type.LIVETEST) run(true);
-else if(SESSION_TYPE == session_type.TRADE) run(false);
+connectivity((online) => {
+	if (online) {
+		if(SESSION_TYPE == session_type.BACKTEST) backtest(COIN_PAIR, CANDLE_INTERVAL, TAKE_PROFIT_MULTIPLIER, PROFIT_MULTIPLIER, STOP_LOSS_MULTIPLIER);
+		else if(SESSION_TYPE == session_type.LIVETEST) run(true);
+		else if(SESSION_TYPE == session_type.TRADE) run(false);
+	} else {
+		global_logger.error("Your internet connection is lost. Please connect to internet")
+	}
+})
