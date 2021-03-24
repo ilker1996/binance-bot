@@ -28,7 +28,7 @@ const fetch_exchange_info = () => {
 						} else if (filter.filterType == "PRICE_FILTER") {
 							filters.min_price = Number(filter.minPrice);
 							filters.max_price = Number(filter.maxPrice);
-							filters.price_digit = -Math.log10(Number(filter.tickSize));
+							filters.price_digit = -1 * Math.log10(Number(filter.tickSize));			
 						} else if (filter.filterType == "LOT_SIZE") {
 							filters.quantity_digit = -Math.log10(Number(filter.stepSize));
 							filters.min_quantity = Number(filter.minQty);
@@ -146,7 +146,7 @@ const get_available_balance = (currency="USDT") => {
 }
 
 // Calculates how much of the asset(coin) the user's balance can buy within the balance limit.
-const calculate_buy_quantity = (symbol, trading_currency="USDT", balance_limit=15, filters={}, test=true) => {
+const calculate_buy_quantity = (symbol, trading_currency="USDT", balance_limit=15, filter={}, test=true) => {
 	// ****** FILTERS *******
 	// 	status: 'TRADING',
 	// 	min_price: 0.01,
@@ -188,17 +188,17 @@ const calculate_buy_quantity = (symbol, trading_currency="USDT", balance_limit=1
 			});
 		}
 		
-		const min_balance = filters?.min_notional ? filters.min_notional : 0;
+		const min_balance = filter?.min_notional ? filter?.min_notional : 0;
 		if(buying_balance >= min_balance) {
 			get_price(symbol).then(
 				(value) => {
-					const coin_price = clamp(value, filters.min_price, filters.max_price);
+					const coin_price = clamp(value, filter.min_price, filter.max_price);
 		
 					let quantity = buying_balance / coin_price;
-					quantity = clamp(quantity, filters.min_quantity, filters.max_quantity);
+					quantity = clamp(quantity, filter.min_quantity, filter.max_quantity);
 					
-					const price_digit = filters?.price_digit ? filters.price_digit : 4 ;
-					const quantity_digit = filters?.quantity_digit ? filters.quantity_digit : 4 ;
+					const price_digit = filter?.price_digit ? filter.price_digit : 4 ;
+					const quantity_digit = filter?.quantity_digit ? filter.quantity_digit : 4 ;
 
 					return resolve({
 						price : parseFloat(coin_price.toFixed(price_digit)),

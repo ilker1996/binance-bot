@@ -25,7 +25,7 @@ const session_type = {
 const SESSION_TYPE = session_type.LIVETEST;
 const TRADE_TYPE = trade_type.SPOT;
 
-const LOG_DIR = "logs/signaler";
+const LOG_DIR = "logs/normal";
 
 const BALANCE_LIMIT = (SESSION_TYPE == session_type.LIVETEST) ? 1000 : 15;
 const TRADING_CURRENCY = "USDT";
@@ -75,17 +75,19 @@ function run(test=true) {
 	binance_api.fetch_exchange_info()
 	.then(
 		(filters) => {
+			const filter = filters[COIN_PAIR];
+
 			global_logger.info("Starting the bot for %s...", COIN_PAIR);
 	
 			const pair_logger = add_logger(COIN_PAIR, LOG_DIR);
 			const indicator = (open_prices, close_prices) => {
-				const sma_indicator = indicators.sma_scalper_6_12(close_prices, filters.price_digit, pair_logger.info);
-				const ema_indicator = indicators.ema_scalper_13_21(open_prices, close_prices, filters.price_digit, pair_logger.info);
+				const sma_indicator = indicators.sma_scalper_6_12(close_prices, filter.price_digit, pair_logger.info);
+				const ema_indicator = indicators.ema_scalper_13_21(open_prices, close_prices, filter.price_digit, pair_logger.info);
 
 				return sma_indicator || ema_indicator;
 			}
 
-			const buyer = new Buyer(TRADING_CURRENCY, BALANCE_LIMIT, filters, pair_logger, test);
+			const buyer = new Buyer(TRADING_CURRENCY, BALANCE_LIMIT, filter, pair_logger, test);
 			const seller = new Seller(pair_logger, test);
 
 			const tracker = new Tracker(COIN_PAIR, STOP_LOSS_MULTIPLIER, PROFIT_MULTIPLIER, TAKE_PROFIT_MULTIPLIER, seller, pair_logger);

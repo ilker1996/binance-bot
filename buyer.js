@@ -1,11 +1,11 @@
 const binance_api = require('./binance_api')
 
 class Buyer {
-    constructor(trading_currency, balance_limit, filters, logger, test) {
+    constructor(trading_currency, balance_limit, filter, logger, test) {
         this.trading_currency = trading_currency;
         this.balance_limit = balance_limit;
 
-        this.filters = filters;
+        this.filter = filter;
 
         this.logger = logger;
 
@@ -13,7 +13,7 @@ class Buyer {
     }
 
     buy(pair, onSuccessfulBuy) {
-        binance_api.calculate_buy_quantity(pair, this.trading_currency, this.balance_limit, this.filters, this.test)
+        binance_api.calculate_buy_quantity(pair, this.trading_currency, this.balance_limit, this.filter, this.test)
         .then( 
             ({price, quantity}) => {
                 if(!this.test) {
