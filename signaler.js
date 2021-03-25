@@ -73,7 +73,9 @@ class Signaler {
 }
 
 if(!Array.prototype.last) {
-    Array.prototype.last = () => this[this.length - 1];
+    Array.prototype.last = function() {
+        return this[this.length - 1];
+    }
 }
 
 exports.Signaler = Signaler;
