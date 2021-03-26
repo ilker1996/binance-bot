@@ -22,7 +22,7 @@ const session_type = {
 	TRADE: "trade",
 }
 
-const SESSION_TYPE = session_type.LIVETEST;
+const SESSION_TYPE = session_type.BACKTEST;
 const TRADE_TYPE = trade_type.SPOT;
 
 const LOG_DIR = "logs/normal";
@@ -102,7 +102,13 @@ function run(test=true) {
 
 connectivity((online) => {
 	if (online) {
-		if(SESSION_TYPE == session_type.BACKTEST) backtest(COIN_PAIR, CANDLE_INTERVAL, TAKE_PROFIT_MULTIPLIER, PROFIT_MULTIPLIER, STOP_LOSS_MULTIPLIER);
+		if(SESSION_TYPE == session_type.BACKTEST) {
+			const profits = [1.015];
+			const stops = [0.99];
+			const pairs = ["BANDUSDT", "REEFUSDT", "LUNAUSDT", "MATICUSDT"];
+			pairs.forEach((pair) => profits.forEach((profit) => stops.forEach((stop) => backtest(pair, CANDLE_INTERVAL, profit, profit, stop))));
+			
+		}
 		else if(SESSION_TYPE == session_type.LIVETEST) run(true);
 		else if(SESSION_TYPE == session_type.TRADE) run(false);
 	} else {
