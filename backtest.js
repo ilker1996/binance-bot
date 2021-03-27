@@ -1,8 +1,9 @@
 const binance_api = require('./binance_api');
-const indicators = require('./indicators')
+
 const { test_logger, global_logger } = require('./logger')
 
 const retry = require('async-retry');
+const { Indicator } = require('./indicator');
 
 const precise = (x) => parseFloat(x.toFixed(4));
 
@@ -66,7 +67,7 @@ const search_signal = async (symbol, interval, prev_open_prices, prev_close_pric
 		const open_prices = prev_open_prices.concat(open_price).slice(1);
 		const close_prices = prev_close_prices.concat(average_price).slice(1);
 
-		const signal = indicator(open_prices, close_prices);
+		const signal = indicator.test(open_prices, close_prices);
 
 		if(signal) return onSignal(candles.high_prices.slice(i + 1), candles.low_prices.slice(i + 1), average_price, candles.close_times[i]);
 	}
@@ -77,13 +78,7 @@ const search_signal = async (symbol, interval, prev_open_prices, prev_close_pric
 const backtest = async (symbol, interval, take_profit_multiplier, profit_multiplier, stop_loss_multipler) => {
 	const logger = test_logger(symbol);
 
-	const indicator = (open_prices, close_prices) =>  {
-		const ema6_12 = indicators.ema_scalper_6_12(close_prices, 4);
-		const ema13_21 = indicators.ema_scalper_13_21(open_prices, close_prices, 4);
-		const sma_6_12 = indicators.sma_scalper_6_12(close_prices, 4);
-
-		return ema6_12 || ema13_21 || sma_6_12;
-	}
+	const indicator = new Indicator(4, logger);
 
 	let candles = null;
 

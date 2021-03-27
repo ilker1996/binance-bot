@@ -56,7 +56,7 @@ class Signaler {
             const open_prices = this.candles.open_prices.concat(open).slice(1);
             const close_prices = this.candles.close_prices.concat(average).slice(1);
 
-            const buy_signal = this.indicator(open_prices, close_prices);
+            const buy_signal = this.indicator.test(open_prices, close_prices);
             
             if(buy_signal) this.buyer.buy(this.pair, (price, quantity) => {
                 this.logger.info("Market Buy - price : %f , quantity : %f", price, quantity);
