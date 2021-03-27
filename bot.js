@@ -81,10 +81,11 @@ function run(test=true) {
 	
 			const pair_logger = add_logger(COIN_PAIR, LOG_DIR);
 			const indicator = (open_prices, close_prices) => {
-				const sma_indicator = indicators.sma_scalper_6_12(close_prices, filter.price_digit, pair_logger.info);
-				const ema_indicator = indicators.ema_scalper_13_21(open_prices, close_prices, filter.price_digit, pair_logger.info);
+				const sma_6_12 = indicators.sma_scalper_6_12(close_prices, filter.price_digit, pair_logger.info);
+				const ema_13_21 = indicators.ema_scalper_13_21(open_prices, close_prices, filter.price_digit, pair_logger.info);
+				const ema_6_12 = indicators.ema_scalper_13_21(open_prices, close_prices, filter.price_digit, pair_logger.info);
 
-				return sma_indicator || ema_indicator;
+				return sma_6_12 || ema_13_21 || ema_6_12;
 			}
 
 			const buyer = new Buyer(TRADING_CURRENCY, BALANCE_LIMIT, filter, pair_logger, test);
@@ -105,9 +106,16 @@ connectivity((online) => {
 		if(SESSION_TYPE == session_type.BACKTEST) {
 			const profits = [1.015];
 			const stops = [0.99];
-			const pairs = ["BANDUSDT", "REEFUSDT", "LUNAUSDT", "MATICUSDT"];
-			pairs.forEach((pair) => profits.forEach((profit) => stops.forEach((stop) => backtest(pair, CANDLE_INTERVAL, profit, profit, stop))));
-			
+
+			const test = async (profit, stop_loss) => {
+				const pairs = await binance_api.get_available_pairs(TRADING_CURRENCY);
+				for(let pair of pairs){
+					console.log(pair);
+					await backtest(pair, CANDLE_INTERVAL, profit, profit, stop_loss);
+				} 
+			};
+
+			profits.forEach((p) => stops.forEach((s) => test(p, s)));
 		}
 		else if(SESSION_TYPE == session_type.LIVETEST) run(true);
 		else if(SESSION_TYPE == session_type.TRADE) run(false);

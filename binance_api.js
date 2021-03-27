@@ -47,6 +47,14 @@ const fetch_exchange_info = () => {
 	});
 }
 
+const get_available_pairs = async (currency="USDT") => {
+	const prices = await binance_client.prices();
+
+	const pairs = Object.keys(prices).filter((p) => p.endsWith(currency));
+	
+	return pairs;
+}
+
 const fetch_candles = (symbol, interval, options={}) => {
 	return new Promise((resolve, reject) => {
 		binance_client.candlesticks(symbol, interval, (error, candles, symbol) => {
@@ -301,6 +309,7 @@ const spot_market_sell = (symbol, price, quantity, onSuccess, onError) => {
 
 exports.authenticate_user = authenticate_user;
 
+exports.get_available_pairs = get_available_pairs;
 exports.fetch_exchange_info = fetch_exchange_info;
 exports.fetch_candles = fetch_candles;
 
