@@ -45,14 +45,14 @@ const calculate_profit = (high_prices, low_prices, buying_price, buying_time, ta
 	return profit;
 }
 
-const search_signal = async (symbol, interval, prev_open_prices, prev_close_prices, start_time, indicator, onSignal) => {
+const search_signal = async (pair, interval, prev_open_prices, prev_close_prices, start_time, indicator, onSignal) => {
 
 	let candles = null;
 
 	try{
-		candles = await retry(async bail => await binance_api.fetch_candles(symbol, "1m", { startTime : start_time }), {maxTimeout : 2000, retries: 10});
+		candles = await retry(async bail => await binance_api.fetch_candles(pair, "1m", { startTime : start_time }), {maxTimeout : 2000, retries: 10});
 	} catch(error) {
-		global_logger.error(symbol + " " + error);
+		global_logger.error(pair + " " + error);
 	}
 
 	let length = parseInt(interval.replace("m", ""));
@@ -75,17 +75,17 @@ const search_signal = async (symbol, interval, prev_open_prices, prev_close_pric
 	return 0;
 }
 
-const backtest = async (symbol, interval, take_profit_multiplier, profit_multiplier, stop_loss_multipler) => {
-	const logger = test_logger(symbol);
+const backtest = async (pair, interval, take_profit_multiplier, profit_multiplier, stop_loss_multipler) => {
+	const logger = test_logger(pair);
 
-	const indicator = new Indicator(4, logger);
+	const indicator = new Indicator(["ema_6_12", "sma_6_12", "ema_13_21"], 6);
 
 	let candles = null;
 
 	try{
-		candles = await retry(async bail => await binance_api.fetch_candles(symbol, interval, {limit : 1000}), {maxTimeout : 2000, retries: 10});
+		candles = await retry(async bail => await binance_api.fetch_candles(pair, interval, {limit : 1000}), {maxTimeout : 2000, retries: 10});
 	} catch(error) {
-		global_logger.error(symbol + " " + error);
+		global_logger.error(pair + " " + error);
 	}
 	
 	let win = 0;
@@ -94,12 +94,13 @@ const backtest = async (symbol, interval, take_profit_multiplier, profit_multipl
 	let balance = 100;
 
 	if(candles) {
-		for(let i = 350; i < candles.open_prices.length - 1; ++i) {
+		for(let i = 100; i < candles.open_prices.length - 1; ++i) {
 			const prev_open_prices = candles.open_prices.slice(0, i);
 			const prev_close_prices = candles.close_prices.slice(0, i);
 			
-			const profit = await search_signal(symbol, interval, prev_open_prices, prev_close_prices, candles.open_times[i], indicator, 
+			const profit = await search_signal(pair, interval, prev_open_prices, prev_close_prices, candles.open_times[i], indicator, 
 				(high_prices, low_prices, buying_price, buying_time) => {
+
 					logger.info("Buying price : %f at %s", buying_price, new Date(buying_time).toLocaleString());
 
 					const profit = calculate_profit(high_prices, low_prices, buying_price, buying_time, take_profit_multiplier, profit_multiplier, stop_loss_multipler, logger);

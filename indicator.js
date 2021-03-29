@@ -1,23 +1,7 @@
 const { EMA, SMA } = require('technicalindicators');
 
-class Indicator {
-    constructor(precision, logger) {
-        this.precision = precision;
-        this.logger = logger;
-    }
+const noop = () => {};
 
-    test(open_prices, close_prices) {
-        const sma_6_12 = sma_crossover_6_12(close_prices, this.precision, this.logger.info);
-        const ema_13_21 = ema_crossover_13_21(open_prices, close_prices, this.precision, this.logger.info);
-        const ema_6_12 = ema_crossover_6_12(close_prices, this.precision, this.logger.info);
-	
-		return sma_6_12 || ema_13_21 || ema_6_12;
-    }
-}
-
-exports.Indicator = Indicator;
-
-// Calculate ema21 and ema13
 const ema_crossover_13_21 = (open_prices, close_prices, price_digit=4, onLog=()=>{}) => {
 	const precise = (x) => parseFloat(x.toFixed(price_digit));
 
@@ -34,8 +18,7 @@ const ema_crossover_13_21 = (open_prices, close_prices, price_digit=4, onLog=()=
 	return signal;
 }
 
-// Calculate ema12 and ema6
-const ema_crossover_6_12 = (close_prices, price_digit=4, onLog=()=>{}) => {
+const ema_crossover_6_12 = (open_prices, close_prices, price_digit=4, onLog=()=>{}) => {
 	const precise = (x) => parseFloat(x.toFixed(price_digit));
 
 	const [prev_ema12, curr_ema12] = EMA.calculate({period: 12, values: close_prices}).slice(-2).map(precise);
@@ -51,8 +34,7 @@ const ema_crossover_6_12 = (close_prices, price_digit=4, onLog=()=>{}) => {
 	return signal;
 }
 
-// Calculate sma12 and sma6
-const sma_crossover_6_12 = (close_prices, price_digit=4, onLog=()=>{}) => {
+const sma_crossover_6_12 = (open_prices, close_prices, price_digit=4, onLog=()=>{}) => {
 	const precise = (x) => parseFloat(x.toFixed(price_digit));
 
 	const [prev_sma6, curr_sma6] = SMA.calculate({period: 6, values: close_prices}).slice(-2).map(precise);
@@ -67,3 +49,30 @@ const sma_crossover_6_12 = (close_prices, price_digit=4, onLog=()=>{}) => {
 	
 	return signal;
 }
+
+const indicator_map = {
+	"ema_13_21" : ema_crossover_13_21,
+	"ema_6_12" : ema_crossover_6_12,
+	"sma_6_12" : sma_crossover_6_12,
+}
+
+class Indicator {
+    constructor(indicator_names, precision, onLog=noop) {
+		this.precision = precision;
+		this.onLog = onLog;
+
+		this.indicator_function = (open_prices, close_prices) => {
+			for(let name of indicator_names) {
+				if(indicator_map[name] && indicator_map[name](open_prices, close_prices, this.precision, this.onLog)) return true;
+			}
+
+			return false;
+		}
+    }
+
+    test(open_prices, close_prices) {
+		return this.indicator_function(open_prices, close_prices);
+    }
+}
+
+exports.Indicator = Indicator;

@@ -59,25 +59,27 @@ function run(test=true) {
 	binance_api.fetch_exchange_info()
 	.then(
 		(filters) => {
-			const pairs = config.pairs.map((coin) => coin.concat(config.currency));
+			const coins = config.coins;
 			
-			for(let pair of pairs) 
-			{
-				global_logger.info("Starting the bot for %s...", pair);
+			for(let coin of coins) 
+			{	
+				const pair_name = coin.name.concat(config.currency);
 
-				const filter = filters[pair];
+				global_logger.info("Starting the bot for %s...", pair_name);
 
-				const pair_logger = add_logger(pair, config.log_dir);
+				const filter = filters[pair_name];
+
+				const pair_logger = add_logger(pair_name, config.log_dir);
 
 				const buyer = new Buyer(config.currency, config.balance_limit, filter, pair_logger, test);
 				const seller = new Seller(pair_logger, test);
 	
-				const tracker = new Tracker(pair, config.stop_loss_multiplier, config.profit_multiplier, config.take_profit_multiplier, seller, pair_logger);
+				const tracker = new Tracker(pair_name, config.stop_loss_multiplier, coin.profit_multiplier, coin.profit_multiplier, seller, pair_logger);
 
-				const indicator = new Indicator(filter.price_digit, pair_logger);
-				const signaler = new Signaler(pair, config.tick_round, buyer, tracker, indicator, pair_logger);
+				const indicator = new Indicator(coin.indicator_names, filter.price_digit, pair_logger.info);
+				const signaler = new Signaler(pair_name, config.tick_round, buyer, tracker, indicator, pair_logger);
 				
-				if(config.trade_type === trade_type.SPOT) start_spot_trade(pair, config.interval, pair_logger, tracker, signaler);
+				if(config.trade_type === trade_type.SPOT) start_spot_trade(pair_name, config.interval, pair_logger, tracker, signaler);
 			}
 		},
 		(error) => global_logger.error(error)
@@ -88,17 +90,18 @@ function run(test=true) {
 connectivity((online) => {
 	if (online) {
 		if(config.session_type == session_type.BACKTEST) {
-			const profits = [1.015];
-			const stops = [0.99];
+			const profits = [1.01, 1.015, 1.02, 1.025];
 
-			const test = async (profit, stop_loss) => {
-				const pairs = config.pairs.map((coin) => coin.concat(config.currency));
+			const test = async (profit) => {
+				const pairs = config.coins.map((coin) => coin.name.concat(config.currency));
+
 				for(let pair of pairs){
-					await backtest(pair, config.interval, profit, profit, stop_loss);
+					console.log(pair);
+					await backtest(pair, config.interval, profit, profit, config.stop_loss_multiplier);
 				}
 			};
 
-			profits.forEach((p) => stops.forEach((s) => test(p, s)));
+			profits.forEach(test);
 		}
 		else if(config.session_type == session_type.LIVETEST) run(true);
 		else if(config.session_type == session_type.TRADE) run(false);
