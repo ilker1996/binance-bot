@@ -38,7 +38,7 @@ class Indicator {
 	
 		const signal = curr_ema13 > curr_ema21 
 					&& prev_ema13 <= prev_ema21
-					&& rsi_filter(21, close_prices);
+					&& rsi_filter(14, close_prices);
 		
 		if(signal) {
 			onLog("current ema21 : %f and current ema13 : %f", curr_ema21, curr_ema13);
@@ -58,7 +58,7 @@ class Indicator {
 	
 		const signal = curr_ema6 > curr_ema12
 					&& prev_ema6 <= prev_ema12
-					&& rsi_filter(12, close_prices);
+					&& rsi_filter(14, close_prices);
 		
 		if(signal) {
 			onLog("current ema12 : %f and current ema6 : %f", curr_ema12, curr_ema6);
@@ -78,7 +78,7 @@ class Indicator {
 		
 		const signal = curr_sma6 > curr_sma12 
 					&& prev_sma6 <= prev_sma12
-					&& rsi_filter(12, close_prices);
+					&& rsi_filter(14, close_prices);
 		
 		if(signal) {
 			onLog("current sma12 : %f and current sma6 : %f", curr_sma12, curr_sma6);
