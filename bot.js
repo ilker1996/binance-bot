@@ -63,7 +63,7 @@ function run(test=true) {
 			
 			for(let coin of coins) 
 			{	
-				const pair_name = coin.name.concat(config.currency);
+				const pair_name = coin.concat(config.currency);
 
 				global_logger.info("Starting the bot for %s...", pair_name);
 
@@ -74,9 +74,9 @@ function run(test=true) {
 				const buyer = new Buyer(config.currency, config.balance_limit, filter, pair_logger, test);
 				const seller = new Seller(pair_logger, test);
 	
-				const tracker = new Tracker(pair_name, config.stop_loss_multiplier, coin.profit_multiplier, coin.profit_multiplier, seller, pair_logger);
+				const tracker = new Tracker(pair_name, config.stop_loss_multiplier, config.profit_multiplier, config.take_profit_multiplier, seller, pair_logger);
 
-				const indicator = new Indicator(coin.indicator_names, filter.price_digit, pair_logger.info);
+				const indicator = new Indicator(config.indicator_names, filter.price_digit, pair_logger.info);
 				const signaler = new Signaler(pair_name, config.tick_round, buyer, tracker, indicator, pair_logger);
 				
 				if(config.trade_type === trade_type.SPOT) start_spot_trade(pair_name, config.interval, pair_logger, tracker, signaler);
@@ -90,18 +90,21 @@ function run(test=true) {
 connectivity((online) => {
 	if (online) {
 		if(config.session_type == session_type.BACKTEST) {
-			const profits = [1.01, 1.015, 1.02, 1.025];
 
-			const test = async (profit) => {
-				const pairs = config.coins.map((coin) => coin.name.concat(config.currency));
+			const test = async (indicator_names) => {
+				const coins = config.coins;
+				
+				for(let coin of coins) 
+				{
+					const pair_name = coin.concat(config.currency);
+					console.log(pair_name);
 
-				for(let pair of pairs){
-					console.log(pair);
-					await backtest(pair, config.interval, profit, profit, config.stop_loss_multiplier);
+					await backtest(pair_name, config.interval, indicator_names, config.profit_multiplier, config.take_profit_multiplier, config.stop_loss_multiplier);
 				}
 			};
-
-			profits.forEach(test);
+			
+			config.indicator_names.forEach((i) => test([i]));
+			
 		}
 		else if(config.session_type == session_type.LIVETEST) run(true);
 		else if(config.session_type == session_type.TRADE) run(false);

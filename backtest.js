@@ -75,10 +75,10 @@ const search_signal = async (pair, interval, prev_open_prices, prev_close_prices
 	return 0;
 }
 
-const backtest = async (pair, interval, take_profit_multiplier, profit_multiplier, stop_loss_multipler) => {
+const backtest = async (pair, interval, indicator_names, take_profit_multiplier, profit_multiplier, stop_loss_multipler) => {
 	const logger = test_logger(pair);
 
-	const indicator = new Indicator(["ema_6_12", "sma_6_12", "ema_13_21"], 6);
+	const indicator = new Indicator(indicator_names, 6);
 
 	let candles = null;
 
@@ -94,7 +94,7 @@ const backtest = async (pair, interval, take_profit_multiplier, profit_multiplie
 	let balance = 100;
 
 	if(candles) {
-		for(let i = 100; i < candles.open_prices.length - 1; ++i) {
+		for(let i = 900; i < candles.open_prices.length - 1; ++i) {
 			const prev_open_prices = candles.open_prices.slice(0, i);
 			const prev_close_prices = candles.close_prices.slice(0, i);
 			
