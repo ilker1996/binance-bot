@@ -1,5 +1,5 @@
 class Tracker {
-    constructor(pair, stop_loss_multiplier, profit_multiplier, take_profit_multiplier, seller, logger){
+    constructor(pair, stop_loss_multiplier, profit_multiplier, take_profit_multiplier, seller, logger, sell_callback){
         this.pair = pair;
 
         this.stop_loss_multiplier = stop_loss_multiplier;
@@ -8,6 +8,8 @@ class Tracker {
 
         this.seller = seller;
         this.logger = logger;
+
+        this.sell_callback = sell_callback;
         
         this.track_list = [];
         this.total_profit = 0;
@@ -35,6 +37,7 @@ class Tracker {
                         this.logger.info("Profit : %f", profit);
         
                         this.total_profit += profit;
+                        this.sell_callback(profit);
                         this.logger.info("Total profit : %f", this.total_profit);
                     }
                 );

@@ -36,7 +36,7 @@ class Indicator {
 		const [prev_ema21, curr_ema21] = EMA.calculate({period: 21, values: open_prices})
 										.slice(-2).map(precise);
 	
-		const signal = curr_ema13 > curr_ema21 
+		const signal = curr_ema13 * 1.001 > curr_ema21
 					&& prev_ema13 <= prev_ema21
 					&& rsi_filter(14, close_prices);
 		
@@ -56,7 +56,7 @@ class Indicator {
 		const [prev_ema6, curr_ema6] = EMA.calculate({period: 6, values: close_prices})
 										.slice(-2).map(precise);
 	
-		const signal = curr_ema6 > curr_ema12
+		const signal = curr_ema6 * 1.001 > curr_ema12
 					&& prev_ema6 <= prev_ema12
 					&& rsi_filter(14, close_prices);
 		
@@ -76,7 +76,7 @@ class Indicator {
 		const [prev_sma12, curr_sma12] = SMA.calculate({period: 12, values: close_prices})
 									.slice(-2).map(precise);
 		
-		const signal = curr_sma6 > curr_sma12 
+		const signal = curr_sma6 * 1.001 > curr_sma12
 					&& prev_sma6 <= prev_sma12
 					&& rsi_filter(14, close_prices);
 		

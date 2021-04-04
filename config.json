@@ -1,7 +1,7 @@
 {
-    "session_type" : "backtest",
+    "session_type" : "livetest",
     "trade_type" : "spot",
-    "log_dir" : "logs/livetest/look_rsi_60",
+    "log_dir" : "logs/livetest/ema_13_21_cur13_sup",
     "currency" : "USDT",
     "interval" : "15m",
     "balance_limit" : 100,
@@ -9,7 +9,7 @@
     "stop_loss_multiplier" : 0.99,
     "profit_multiplier" : 1.015,
     "take_profit_multiplier" : 1.015,
-    "indicator_names" : ["ema_6_12", "ema_13_21", "sma_6_12"],
+    "indicator_names" : ["ema_13_21"],
     "coins" : 
         [
             "AKRO",

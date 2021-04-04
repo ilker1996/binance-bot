@@ -22,6 +22,8 @@ const session_type = {
 	TRADE: "trade",
 }
 
+let account_balance = 1000;
+
 function start_spot_trade(pair, interval, logger, tracker, signaler) {
 	let candles = null;
 
@@ -66,6 +68,7 @@ function run(test=true) {
 				const pair_name = coin.concat(config.currency);
 
 				global_logger.info("Starting the bot for %s...", pair_name);
+				global_logger.info("Initial account balance : %d", account_balance);
 
 				const filter = filters[pair_name];
 
@@ -74,7 +77,11 @@ function run(test=true) {
 				const buyer = new Buyer(config.currency, config.balance_limit, filter, pair_logger, test);
 				const seller = new Seller(pair_logger, test);
 	
-				const tracker = new Tracker(pair_name, config.stop_loss_multiplier, config.profit_multiplier, config.take_profit_multiplier, seller, pair_logger);
+				const tracker = new Tracker(pair_name, config.stop_loss_multiplier, config.profit_multiplier, config.take_profit_multiplier, seller, pair_logger,
+					(profit) => {
+						account_balance += profit;
+						global_logger.info("New account balance for %s : %d", config.log_dir, account_balance);
+					});
 
 				const indicator = new Indicator(config.indicator_names, filter.price_digit, pair_logger.info);
 				const signaler = new Signaler(pair_name, config.tick_round, buyer, tracker, indicator, pair_logger);
