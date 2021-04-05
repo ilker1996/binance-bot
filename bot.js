@@ -74,14 +74,19 @@ function run(test=true) {
 
 				const pair_logger = add_logger(pair_name, config.log_dir);
 
-				const buyer = new Buyer(config.currency, config.balance_limit, filter, pair_logger, test);
-				const seller = new Seller(pair_logger, test);
+				const buyer = new Buyer(config.currency, config.balance_limit, filter, pair_logger, test, (price, quantity) => 
+				{
+					account_balance -= price * quantity;
+					global_logger.info("New account balance for %s : %d", config.log_dir, account_balance);
+				});
+				
+				const seller = new Seller(pair_logger, test, (price, quantity) => 
+				{
+					account_balance += price * quantity;
+					global_logger.info("New account balance for %s : %d", config.log_dir, account_balance);
+				});
 	
-				const tracker = new Tracker(pair_name, config.stop_loss_multiplier, config.profit_multiplier, config.take_profit_multiplier, seller, pair_logger,
-					(profit) => {
-						account_balance += profit;
-						global_logger.info("New account balance for %s : %d", config.log_dir, account_balance);
-					});
+				const tracker = new Tracker(pair_name, config.stop_loss_multiplier, config.profit_multiplier, config.take_profit_multiplier, seller, pair_logger);
 
 				const indicator = new Indicator(config.indicator_names, filter.price_digit, pair_logger.info);
 				const signaler = new Signaler(pair_name, config.tick_round, buyer, tracker, indicator, pair_logger);
