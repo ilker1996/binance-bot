@@ -17,15 +17,8 @@ class Tracker {
     feed(current_price) {
         for (let i = this.track_list.length - 1; i >= 0; --i) {
             const track = this.track_list[i];
-            
-            if(!track.sell && current_price >= track.higher_price_limit && current_price < track.buying_price * this.take_profit_multiplier) {
-                track.lower_price_limit = track.higher_price_limit * ((1 + this.stop_loss_multiplier) * 0.5),
-                track.higher_price_limit = track.higher_price_limit * ((1 + this.profit_multiplier) * 0.5),
 
-                this.logger.info("Lower limit increased to : %f for quantity : %f", track.lower_price_limit, track.buying_quantity);
-                this.logger.info("Higher limit increased to : %f for quantity : %f", track.higher_price_limit, track.buying_quantity);
-
-            } else if(track.sell || current_price <= track.lower_price_limit || current_price >= track.buying_price * this.take_profit_multiplier) {
+            if(track.sell || current_price <= track.lower_price_limit || current_price >= track.buying_price * this.take_profit_multiplier) {
                 this.seller.sell(this.pair, current_price, track.buying_quantity, 
                     (price, quantity) => {
                         // Remove from track list
@@ -38,6 +31,13 @@ class Tracker {
                         this.logger.info("Total profit : %f", this.total_profit);
                     }
                 );
+            } else if(current_price >= track.higher_price_limit && current_price < track.buying_price * this.take_profit_multiplier) {
+                track.lower_price_limit = track.higher_price_limit * ((1 + this.stop_loss_multiplier) * 0.5),
+                track.higher_price_limit = track.higher_price_limit * ((1 + this.profit_multiplier) * 0.5),
+
+                this.logger.info("Lower limit increased to : %f for quantity : %f", track.lower_price_limit, track.buying_quantity);
+                this.logger.info("Higher limit increased to : %f for quantity : %f", track.higher_price_limit, track.buying_quantity);
+
             }
         }
     }

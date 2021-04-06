@@ -22,8 +22,6 @@ const session_type = {
 	TRADE: "trade",
 }
 
-let account_balance = 1000;
-
 function start_spot_trade(pair, interval, logger, tracker, signaler) {
 	let candles = null;
 
@@ -53,6 +51,7 @@ function start_spot_trade(pair, interval, logger, tracker, signaler) {
 
 function run(test=true) {
 	const global_logger = add_logger("GLOBAL", config.log_dir);
+	let account_balance = 1000;
 
 	if(!test) {
 		global_logger.info("Authenticating to Binance...");
@@ -65,12 +64,11 @@ function run(test=true) {
 		(filters) => {
 			const coins = config.coins;
 			
-			for(let coin of coins) 
-			{	
+			for(let coin of coins)
+			{
 				const pair_name = coin.concat(config.currency);
 
 				global_logger.info("Starting the bot for %s...", pair_name);
-				global_logger.info("Initial account balance : %d", account_balance);
 
 				const filter = filters[pair_name];
 
@@ -79,19 +77,15 @@ function run(test=true) {
 				const buyer = new Buyer(config.currency, config.balance_limit, filter, pair_logger, test, (price, quantity) => 
 				{	
 					pair_logger.info("Market Buy - price : %f , quantity : %f", price, quantity);
-
 					account_balance -= price * quantity;
-
-					global_logger.info("New account balance for %s : %d", config.log_dir, account_balance);
+					global_logger.info("New balance for %s : %d", config.log_dir, account_balance);
 				});
 
 				const seller = new Seller(pair_logger, test, (price, quantity) => 
 				{
 					pair_logger.info("Market Sell - price : %f , quantity : %f", price, quantity);
-					
 					account_balance += price * quantity;
-
-					global_logger.info("New account balance for %s : %d", config.log_dir, account_balance);
+					global_logger.info("New balance for %s : %d", config.log_dir, account_balance);
 				});
 	
 				const tracker = new Tracker(pair_name, config.stop_loss_multiplier, config.profit_multiplier, config.take_profit_multiplier, buyer, seller, pair_logger);
@@ -100,6 +94,8 @@ function run(test=true) {
 				
 				if(config.trade_type === trade_type.SPOT) start_spot_trade(pair_name, config.interval, pair_logger, tracker, signaler);
 			}
+
+			global_logger.info("Initial balance : %d", account_balance);
 		},
 		(error) => global_logger.error(error)
 	)
