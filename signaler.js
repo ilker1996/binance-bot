@@ -7,7 +7,7 @@ class Signaler {
         this.tracker = tracker;
         this.logger = logger;
 
-        this.indicator = new Indicator(indicator_names, price_digit, this.logger.info);
+        this.indicator = new Indicator(indicator_names, price_digit);
        
         this.tick_round = tick_round;
         this.tick_count = 0;
@@ -60,9 +60,11 @@ class Signaler {
             const signal = this.indicator.test(open_prices, close_prices);
             
             if(signal == signal_type.LONG) {
+                this.logger.info("Long signal");
                 this.tracker.long_signal();
                 this.wait_for_next_candle = true;
             } else if(signal == signal_type.SHORT) {
+                this.logger.info("Short signal");
                 this.tracker.short_signal(close);
                 this.wait_for_next_candle = true;
             }
