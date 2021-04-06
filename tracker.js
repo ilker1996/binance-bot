@@ -1,5 +1,5 @@
 class Tracker {
-    constructor(pair, stop_loss_multiplier, profit_multiplier, take_profit_multiplier, buyer, seller, logger){
+    constructor(pair, stop_loss_multiplier, profit_multiplier, take_profit_multiplier, buyer, seller, logger, buy_callback, sell_callback){
         this.pair = pair;
 
         this.stop_loss_multiplier = stop_loss_multiplier;
@@ -9,6 +9,9 @@ class Tracker {
         this.seller = seller;
         this.buyer = buyer;
         this.logger = logger;
+
+        this.buy_callback = buy_callback;
+        this.sell_callback = sell_callback;
         
         this.track_list = [];
         this.total_profit = 0;
@@ -27,6 +30,8 @@ class Tracker {
                         const profit = price * quantity - track.buying_price * track.buying_quantity;
                         this.logger.info("Profit : %f", profit);
 
+                        this.sell_callback(price, quantity, profit);
+
                         this.total_profit += profit;
                         this.logger.info("Total profit : %f", this.total_profit);
                     }
@@ -43,7 +48,10 @@ class Tracker {
     }
 
     long_signal() {
-        this.buyer.buy(this.pair, (price, quantity) => this.add_track(price, quantity));
+        this.buyer.buy(this.pair, (price, quantity) => {
+            this.add_track(price, quantity);
+            this.buy_callback(price, quantity);
+        });
     }
 
     short_signal() {

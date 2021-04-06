@@ -10,7 +10,6 @@ const rsi = (period, values) => RSI.calculate({period, values}).slice(-1)[0];
 
 class Indicator {
     constructor(indicator_names, precision) {
-		this.onLog = onLog;
 		this.precision = precision;
 
 		this.indicator_map = {
@@ -22,7 +21,7 @@ class Indicator {
 		this.indicator_function = (open_prices, close_prices) => {
 			for(let name of indicator_names) {
  				if(this.indicator_map[name]) {
-					const signal = this.indicator_map[name](open_prices, close_prices, this.precision, this.onLog);
+					const signal = this.indicator_map[name](open_prices, close_prices, this.precision);
 					if(signal == signal_type.LONG || signal == signal_type.SHORT) return signal;
 				}
 			}
@@ -48,8 +47,7 @@ class Indicator {
 			signal = signal_type.LONG;
 		} 
 		else if(curr_ema21 > curr_ema13 
-			&& prev_ema21 <= prev_ema13 
-			&& rsi(14, close_prices) <= 45) 
+			&& prev_ema21 <= prev_ema13) 
 		{
 			signal = signal_type.SHORT;
 		}
@@ -74,8 +72,7 @@ class Indicator {
 			signal = signal_type.LONG;
 		} 
 		else if(curr_ema12 > curr_ema6 
-			&& prev_ema12 <= prev_ema6 
-			&& rsi(14, close_prices) <= 45) 
+			&& prev_ema12 <= prev_ema6) 
 		{
 			signal = signal_type.SHORT;
 		}
@@ -100,8 +97,7 @@ class Indicator {
 			signal = signal_type.LONG;
 		} 
 		else if(curr_sma12 > curr_sma6 
-			&& prev_sma12 <= prev_sma6 
-			&& rsi(14, close_prices) <= 45) 
+			&& prev_sma12 <= prev_sma6) 
 		{
 			signal = signal_type.SHORT;
 		}

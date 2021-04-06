@@ -4,7 +4,7 @@
     "log_dir" : "logs/livetest/ema_13_21_cur13_sup",
     "currency" : "USDT",
     "interval" : "15m",
-    "balance_limit" : 100,
+    "balance_limit" : 50,
     "tick_round" : 30,
     "stop_loss_multiplier" : 0.99,
     "profit_multiplier" : 1.015,

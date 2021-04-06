@@ -52,6 +52,7 @@ function start_spot_trade(pair, interval, logger, tracker, signaler) {
 function run(test=true) {
 	const global_logger = add_logger("GLOBAL", config.log_dir);
 	let account_balance = 1000;
+	let total_profit = 0;
 
 	if(!test) {
 		global_logger.info("Authenticating to Binance...");
@@ -74,23 +75,26 @@ function run(test=true) {
 
 				const pair_logger = add_logger(pair_name, config.log_dir);
 
-				const buyer = new Buyer(config.currency, config.balance_limit, filter, pair_logger, test, (price, quantity) => 
-				{	
+				const buyer = new Buyer(config.currency, config.balance_limit, filter, pair_logger, test);
+				const seller = new Seller(pair_logger, test);
+				
+				const buy_callback = (price, quantity) => {
 					account_balance -= price * quantity;
 					
 					pair_logger.info("Market Buy - price : %f , quantity : %f", price, quantity);
-					global_logger.info("New balance for %s : %d", config.log_dir, account_balance);
-				});
+					global_logger.info("Balance : %d", account_balance);
+				}
 
-				const seller = new Seller(pair_logger, test, (price, quantity) => 
-				{
+				const sell_callback = (price, quantity, profit) => {
 					account_balance += price * quantity;
+					total_profit += profit;
 
 					pair_logger.info("Market Sell - price : %f , quantity : %f", price, quantity);
-					global_logger.info("New balance for %s : %d", config.log_dir, account_balance);
-				});
-	
-				const tracker = new Tracker(pair_name, config.stop_loss_multiplier, config.profit_multiplier, config.take_profit_multiplier, buyer, seller, pair_logger);
+					global_logger.info("Balance : %d", account_balance);
+					global_logger.info("Total profit : %d", total_profit);
+				}
+
+				const tracker = new Tracker(pair_name, config.stop_loss_multiplier, config.profit_multiplier, config.take_profit_multiplier, buyer, seller, pair_logger, buy_callback, sell_callback);
 
 				const signaler = new Signaler(pair_name, config.tick_round, config.indicator_names, filter.price_digit, tracker, pair_logger);
 				
