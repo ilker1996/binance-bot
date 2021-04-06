@@ -1,13 +1,14 @@
+const { Indicator, signal_type } = require("./indicator");
 
 class Signaler {
-    constructor(pair, tick_round, buyer, tracker, indicator, logger) {
+    constructor(pair, tick_round, indicator_names, price_digit, tracker, logger) {
         this.pair = pair;
 
-        this.buyer = buyer;
         this.tracker = tracker;
-        this.indicator = indicator;
         this.logger = logger;
 
+        this.indicator = new Indicator(indicator_names, price_digit, this.logger.info);
+       
         this.tick_round = tick_round;
         this.tick_count = 0;
         this.tick_sum = 0;
@@ -56,13 +57,15 @@ class Signaler {
             const open_prices = this.candles.open_prices.concat(open).slice(1);
             const close_prices = this.candles.close_prices.concat(average).slice(1);
 
-            const buy_signal = this.indicator.test(open_prices, close_prices);
+            const signal = this.indicator.test(open_prices, close_prices);
             
-            if(buy_signal) this.buyer.buy(this.pair, (price, quantity) => {
-                this.logger.info("Market Buy - price : %f , quantity : %f", price, quantity);
-                this.tracker.add_track(price, quantity);
+            if(signal == signal_type.LONG) {
+                this.tracker.long_signal();
                 this.wait_for_next_candle = true;
-            });
+            } else if(signal == signal_type.SHORT) {
+                this.tracker.short_signal(close);
+                this.wait_for_next_candle = true;
+            }
         }
 
         if(isFinal) {

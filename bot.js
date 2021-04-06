@@ -5,10 +5,10 @@ const binance_api = require('./binance_api');
 const { backtest } = require('./backtest');
 const { global_logger, add_logger } = require('./logger');
 const { Signaler } = require('./signaler');
-const { Indicator } = require('./indicator');
 const { Tracker } = require('./tracker');
 const { Buyer } = require('./buyer');
 const { Seller } = require('./seller');
+
 const config = require("./config.json");
 
 const trade_type = {
@@ -75,21 +75,26 @@ function run(test=true) {
 				const pair_logger = add_logger(pair_name, config.log_dir);
 
 				const buyer = new Buyer(config.currency, config.balance_limit, filter, pair_logger, test, (price, quantity) => 
-				{
+				{	
+					pair_logger.info("Market Buy - price : %f , quantity : %f", price, quantity);
+
 					account_balance -= price * quantity;
+
 					global_logger.info("New account balance for %s : %d", config.log_dir, account_balance);
 				});
-				
+
 				const seller = new Seller(pair_logger, test, (price, quantity) => 
 				{
+					pair_logger.info("Market Sell - price : %f , quantity : %f", price, quantity);
+					
 					account_balance += price * quantity;
+
 					global_logger.info("New account balance for %s : %d", config.log_dir, account_balance);
 				});
 	
-				const tracker = new Tracker(pair_name, config.stop_loss_multiplier, config.profit_multiplier, config.take_profit_multiplier, seller, pair_logger);
+				const tracker = new Tracker(pair_name, config.stop_loss_multiplier, config.profit_multiplier, config.take_profit_multiplier, buyer, seller, pair_logger);
 
-				const indicator = new Indicator(config.indicator_names, filter.price_digit, pair_logger.info);
-				const signaler = new Signaler(pair_name, config.tick_round, buyer, tracker, indicator, pair_logger);
+				const signaler = new Signaler(pair_name, config.tick_round, config.indicator_names, filter.price_digit, tracker, pair_logger);
 				
 				if(config.trade_type === trade_type.SPOT) start_spot_trade(pair_name, config.interval, pair_logger, tracker, signaler);
 			}

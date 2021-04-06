@@ -1,5 +1,5 @@
 class Tracker {
-    constructor(pair, stop_loss_multiplier, profit_multiplier, take_profit_multiplier, seller, logger){
+    constructor(pair, stop_loss_multiplier, profit_multiplier, take_profit_multiplier, buyer, seller, logger){
         this.pair = pair;
 
         this.stop_loss_multiplier = stop_loss_multiplier;
@@ -7,6 +7,7 @@ class Tracker {
         this.take_profit_multiplier = take_profit_multiplier;
 
         this.seller = seller;
+        this.buyer = buyer;
         this.logger = logger;
         
         this.track_list = [];
@@ -17,21 +18,19 @@ class Tracker {
         for (let i = this.track_list.length - 1; i >= 0; --i) {
             const track = this.track_list[i];
             
-            if(current_price >= track.higher_price_limit && current_price < track.buying_price * this.take_profit_multiplier) {
+            if(!track.sell && current_price >= track.higher_price_limit && current_price < track.buying_price * this.take_profit_multiplier) {
                 track.lower_price_limit = track.higher_price_limit * ((1 + this.stop_loss_multiplier) * 0.5),
                 track.higher_price_limit = track.higher_price_limit * ((1 + this.profit_multiplier) * 0.5),
 
                 this.logger.info("Lower limit increased to : %f for quantity : %f", track.lower_price_limit, track.buying_quantity);
                 this.logger.info("Higher limit increased to : %f for quantity : %f", track.higher_price_limit, track.buying_quantity);
 
-            } else if(current_price <= track.lower_price_limit || current_price >= track.buying_price * this.take_profit_multiplier) {
+            } else if(track.sell || current_price <= track.lower_price_limit || current_price >= track.buying_price * this.take_profit_multiplier) {
                 this.seller.sell(this.pair, current_price, track.buying_quantity, 
                     (price, quantity) => {
                         // Remove from track list
                         this.remove_track(i);
-                        
-                        this.logger.info("Market Sell - price : %f , quantity : %f", price, quantity);
-                        
+                                                
                         const profit = price * quantity - track.buying_price * track.buying_quantity;
                         this.logger.info("Profit : %f", profit);
 
@@ -41,14 +40,23 @@ class Tracker {
                 );
             }
         }
-    } 
+    }
+
+    long_signal() {
+        this.buyer.buy(this.pair, (price, quantity) => this.add_track(price, quantity));
+    }
+
+    short_signal() {
+        this.track_list.forEach((track) => track.sell = true);
+    }
 
     add_track(price, quantity) {
         this.track_list.push({
-            buying_price : price, 
+            buying_price : price,
             buying_quantity : quantity,
             lower_price_limit : price * this.stop_loss_multiplier,
-            higher_price_limit : price * this.profit_multiplier
+            higher_price_limit : price * this.profit_multiplier,
+            sell: false
         });
     }
 
