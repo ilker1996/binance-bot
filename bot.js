@@ -76,15 +76,17 @@ function run(test=true) {
 
 				const buyer = new Buyer(config.currency, config.balance_limit, filter, pair_logger, test, (price, quantity) => 
 				{	
-					pair_logger.info("Market Buy - price : %f , quantity : %f", price, quantity);
 					account_balance -= price * quantity;
+					
+					pair_logger.info("Market Buy - price : %f , quantity : %f", price, quantity);
 					global_logger.info("New balance for %s : %d", config.log_dir, account_balance);
 				});
 
 				const seller = new Seller(pair_logger, test, (price, quantity) => 
 				{
-					pair_logger.info("Market Sell - price : %f , quantity : %f", price, quantity);
 					account_balance += price * quantity;
+
+					pair_logger.info("Market Sell - price : %f , quantity : %f", price, quantity);
 					global_logger.info("New balance for %s : %d", config.log_dir, account_balance);
 				});
 	
