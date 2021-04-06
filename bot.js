@@ -3,7 +3,7 @@ const retry = require('async-retry');
 
 const binance_api = require('./binance_api');
 const { backtest } = require('./backtest');
-const { global_logger, add_logger } = require('./logger');
+const { add_logger } = require('./logger');
 const { Signaler } = require('./signaler');
 const { Tracker } = require('./tracker');
 const { Buyer } = require('./buyer');
@@ -52,6 +52,8 @@ function start_spot_trade(pair, interval, logger, tracker, signaler) {
 };
 
 function run(test=true) {
+	const global_logger = add_logger("GLOBAL", config.log_dir);
+
 	if(!test) {
 		global_logger.info("Authenticating to Binance...");
 		binance_api.authenticate_user();
