@@ -47,12 +47,20 @@ const fetch_exchange_info = () => {
 	});
 }
 
-const get_available_pairs = async (currency="USDT") => {
-	const prices = await binance_client.prices();
-
-	const pairs = Object.keys(prices).filter((p) => p.endsWith(currency));
+const get_available_pairs = (currency="USDT") => {
+	return new Promise((resolve, reject) => {
+		binance_client.prevDay(false, (error, prev_stats) => {
+			if(error) {
+				return reject("Error occured fetching previous day statistics " + error);
+			} else {
+				const pairs = prev_stats
+							.map((o) => o.symbol)
+							.filter((s) => s.endsWith(currency));
 	
-	return pairs;
+				return resolve(pairs);
+			}	
+		});
+	});
 }
 
 const fetch_candles = (symbol, interval, options={}) => {
