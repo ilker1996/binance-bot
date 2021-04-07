@@ -21,22 +21,22 @@ class Tracker {
         for (let i = this.track_list.length - 1; i >= 0; --i) {
             const track = this.track_list[i];
 
-            if(track.sell || current_price <= track.lower_price_limit || current_price >= track.buying_price * this.take_profit_multiplier) {
+            if(current_price <= track.lower_price_limit || current_price >= track.buying_price * this.take_profit_multiplier || track.sell) {
                 this.seller.sell(this.pair, current_price, track.buying_quantity, 
                     (price, quantity) => {
-                        // Remove from track list
                         this.remove_track(i);
                                                 
                         const profit = price * quantity - track.buying_price * track.buying_quantity;
-                        this.logger.info("Profit : %f", profit);
-
                         this.sell_callback(price, quantity, profit);
+
+                        this.logger.info("Profit : %f", profit);
 
                         this.total_profit += profit;
                         this.logger.info("Total profit : %f", this.total_profit);
+
                     }
                 );
-            } else if(current_price >= track.higher_price_limit && current_price < track.buying_price * this.take_profit_multiplier) {
+            } else if(current_price >= track.higher_price_limit) {
                 track.lower_price_limit = track.higher_price_limit * ((1 + this.stop_loss_multiplier) * 0.5),
                 track.higher_price_limit = track.higher_price_limit * ((1 + this.profit_multiplier) * 0.5),
 
