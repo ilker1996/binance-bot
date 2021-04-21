@@ -5,13 +5,14 @@ The bot is fully written in Javascript.
 
 # Features
 
-- Automated buy/sell order creation based on the ema or sma crossover.
+- Automated buy/sell order creation based on the ma or ma crossover.
 
 # Future development
 
 Here are some points that deserve attention:
 
 - More consideration with the profit and stop-loss price calculations (multipliers and higher limit increase ratio)
+- Use volatility/volume/momentum indicators along with ma crossover (e.g. MACD and CCI)
 
 # Dependencies
 

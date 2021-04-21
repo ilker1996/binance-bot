@@ -13,7 +13,8 @@ class Signaler {
         this.tick_count = 0;
         this.tick_sum = 0;
 
-        this.wait_for_next_candle = false;
+        this.skip_long_signal = false;
+        this.skip_short_signal = false;
         
         this.candles = {};
     }
@@ -41,14 +42,15 @@ class Signaler {
     reset() {
         this.tick_count = 0;
         this.tick_sum = 0;
-        this.wait_for_next_candle = false;
+        this.skip_long_signal = false;
+        this.skip_short_signal = false;
     }
 
     feed(open, close, low, high, event_time, isFinal) {
         this.tick_count += 1;
         this.tick_sum += close;
 
-        if(!this.wait_for_next_candle && this.tick_count == this.tick_round) {
+        if(this.tick_count == this.tick_round) {
             const average = this.tick_sum / this.tick_count;
 
             this.tick_count = 0;
@@ -56,17 +58,19 @@ class Signaler {
 
             const open_prices = this.candles.open_prices.concat(open).slice(1);
             const close_prices = this.candles.close_prices.concat(average).slice(1);
+            const low_prices = this.candles.low_prices.concat(low).slice(1);
+            const high_prices = this.candles.high_prices.concat(high).slice(1);
 
-            const signal = this.indicator.test(open_prices, close_prices);
+            const signal = this.indicator.test(open_prices, close_prices, low_prices, high_prices);
             
-            if(signal == signal_type.LONG) {
+            if(!this.skip_long_signal && signal == signal_type.LONG) {
                 this.logger.info("Long signal");
                 this.tracker.long_signal();
-                this.wait_for_next_candle = true;
-            } else if(signal == signal_type.SHORT) {
+                this.skip_long_signal = true;
+            } else if(!this.skip_short_signal && signal == signal_type.SHORT) {
                 this.logger.info("Short signal");
                 this.tracker.short_signal(close);
-                this.wait_for_next_candle = true;
+                this.skip_short_signal = true;
             }
         }
 

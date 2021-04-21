@@ -22,6 +22,8 @@ const session_type = {
 	TRADE: "trade",
 }
 
+const global_logger = add_logger("GLOBAL", config.log_dir + "_" + config.indicator_names.join('-'));
+
 function start_spot_trade(pair, interval, logger, tracker, signaler) {
 	let candles = null;
 
@@ -50,8 +52,8 @@ function start_spot_trade(pair, interval, logger, tracker, signaler) {
 };
 
 function run(test=true) {
-	const global_logger = add_logger("GLOBAL", config.log_dir);
 	let account_balance = 1000;
+	let trading_fee = 0;
 	let total_profit = 0;
 
 	if(!test) {
@@ -63,9 +65,7 @@ function run(test=true) {
 	binance_api.fetch_exchange_info()
 	.then(
 		(filters) => {
-			const coins = config.coins;
-			
-			for(let coin of coins)
+			for(let coin of config.coins)
 			{
 				const pair_name = coin.concat(config.currency);
 
@@ -73,16 +73,19 @@ function run(test=true) {
 
 				const filter = filters[pair_name];
 
-				const pair_logger = add_logger(pair_name, config.log_dir);
+				const pair_logger = add_logger(pair_name, config.log_dir + "_" + config.indicator_names.join('-'));
 
 				const buyer = new Buyer(config.currency, config.balance_limit, filter, pair_logger, test);
 				const seller = new Seller(pair_logger, test);
 				
 				const buy_callback = (price, quantity) => {
 					account_balance -= price * quantity;
-					
+					trading_fee += price * quantity * 0.001;
+
 					pair_logger.info("Market Buy - price : %f , quantity : %f", price, quantity);
+					
 					global_logger.info("Balance : %d", account_balance);
+					global_logger.info("Trading Fee : %d", trading_fee);
 				}
 
 				const sell_callback = (price, quantity, profit) => {
@@ -90,6 +93,7 @@ function run(test=true) {
 					total_profit += profit;
 
 					pair_logger.info("Market Sell - price : %f , quantity : %f", price, quantity);
+
 					global_logger.info("Balance : %d", account_balance);
 					global_logger.info("Total profit : %d", total_profit);
 				}
