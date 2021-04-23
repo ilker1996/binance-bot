@@ -6,6 +6,8 @@ const signal_type = {
 	NONE: 0
 }
 
+const zip = (a, b, c, d) => a.map((k, i) => [k, b[i], c[i], d[i]]);
+
 const rsi = (values) => RSI.calculate({period: 14, values}).slice(-1)[0];
 
 const macd_momentum = (values) => MACD.calculate({fastPeriod: 12, slowPeriod: 26, signalPeriod: 9, values}).slice(-1)[0].histogram;
@@ -138,37 +140,28 @@ class Indicator {
 
 		const candle_list = HeikinAshi.calculate({open: open_prices, close: close_prices, low: low_prices, high: high_prices});
 
-		const { 
-			open, high, low, close 
-		} = {
-			open: candle_list.open.map(precise),
-			high: candle_list.high.map(precise),
-			low: candle_list.low.map(precise),
-			close: candle_list.close.map(precise)
-		};
+		const {open, high, low , close} = candle_list;
 
-		const [prev_open, curr_open] = open.slice(-2);
-		const [prev_high, curr_high] = high.slice(-2);
-		const [prev_low, curr_low] = low.slice(-2);
-		const [prev_close, curr_close] = close.slice(-2);
+		const candles = zip(open.slice(-4), high.slice(-4), low.slice(-4), close.slice(-4)).map(subarray => subarray.map(precise));
 
-		const curr_open_to_close = Math.abs(curr_close - curr_open);
-		const curr_low_to_high = Math.abs(curr_high - curr_low);
-		const is_curr_thick = (curr_open_to_close / curr_low_to_high) >= 0.5;
-		
-		const prev_open_to_close =  Math.abs(prev_open - prev_close);
-		const prev_low_to_high = Math.abs(prev_high - prev_low);
-		const is_prev_thin = (prev_open_to_close / prev_low_to_high) <= 0.25;
+		const isThin = (open, high, low, close) => (Math.abs(close - open) / Math.abs(high - low)) <= 0.3;
+		const isThick = (open, high, low, close) => {
+			const high_momentum = close > open * 1.005 || open > close * 1.005;
+			return high_momentum && (Math.abs(close - open) / Math.abs(high - low)) >= 0.6;
+		}
+
+		const isGreen = (open, high, low, close) => close > open;
+		const isRed = (open, high, low, close) => close < open;
 
 		let signal = signal_type.NONE;
 
-		if( curr_close > curr_open 
-			&& prev_close < prev_open
-			&& is_curr_thick
-			&& is_prev_thin)
+		const bullish_candles = candles.map((array) => isGreen(...array) && isThick(...array));
+		const bearish_candles = candles.map((array) => isRed(...array) && isThin(...array));
+
+		if( bearish_candles[2] && bullish_candles[3] && rsi(close_prices) >= 50)
 		{
 			signal = signal_type.LONG;
-		} 
+		}
 		
 		return signal;
 	}

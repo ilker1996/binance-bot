@@ -116,6 +116,13 @@ connectivity((online) => {
 	if (online) {
 		if(config.session_type == session_type.BACKTEST) {
 
+			let total_profit = 0;
+
+			const onProfit = (profit) => {
+				total_profit += profit;
+				
+			}
+
 			const test = async (indicator_names) => {
 				const coins = config.coins;
 				
@@ -124,8 +131,10 @@ connectivity((online) => {
 					const pair_name = coin.concat(config.currency);
 					console.log(pair_name);
 
-					await backtest(pair_name, config.interval, indicator_names, config.profit_multiplier, config.take_profit_multiplier, config.stop_loss_multiplier);
+					await backtest(pair_name, config.interval, indicator_names, config.profit_multiplier, config.take_profit_multiplier, config.stop_loss_multiplier, onProfit);
 				}
+
+				global_logger.info("% %d", 100 * total_profit);
 			};
 			
 			config.indicator_names.forEach((i) => test([i]));
