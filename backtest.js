@@ -80,8 +80,8 @@ const backtest = async (pair, interval, indicator_names, take_profit_multiplier,
 
 	const indicator = new Indicator(indicator_names, 6);
 
-	const start_time = new Date("04/12/2021 03:00:00").getTime();
-	const end_time = new Date("04/25/2021 03:00:00").getTime();
+	const start_time = new Date("04/18/2021 03:00:00").getTime();
+	const end_time = new Date("04/26/2021 03:00:00").getTime();
 
 	let candles = null;
 
