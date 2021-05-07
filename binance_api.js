@@ -3,10 +3,16 @@ const Binance = require('node-binance-api');
 
 let binance_client = new Binance();
 
+const clamp = (number, min, max) => {
+	const tmp_min = min ? min : number;
+	const tmp_max = max ? max : number;
+	return Math.max(tmp_min, Math.min(number, tmp_max));
+}
+
 const authenticate_user = () => {
 	const BINANCE_API_KEY = require("./binance_secrets.json");
 
-	binance_client.setOptions({
+	binance_client = new Binance({
 		APIKEY: BINANCE_API_KEY.api_key,
 		APISECRET: BINANCE_API_KEY.api_secret
 	});
@@ -28,7 +34,7 @@ const fetch_exchange_info = () => {
 						} else if (filter.filterType == "PRICE_FILTER") {
 							filters.min_price = Number(filter.minPrice);
 							filters.max_price = Number(filter.maxPrice);
-							filters.price_digit = -Math.log10(Number(filter.tickSize));
+							filters.price_digit = -1 * Math.log10(Number(filter.tickSize));			
 						} else if (filter.filterType == "LOT_SIZE") {
 							filters.quantity_digit = -Math.log10(Number(filter.stepSize));
 							filters.min_quantity = Number(filter.minQty);
@@ -47,7 +53,23 @@ const fetch_exchange_info = () => {
 	});
 }
 
-// Adjust the candles format for the indicators
+const get_available_pairs = (currency="USDT") => {
+	return new Promise((resolve, reject) => {
+		binance_client.prevDay(false, (error, prev_stats) => {
+			if(error) {
+				return reject("Error occured fetching previous day statistics " + error);
+			} else {
+				const pairs = prev_stats
+							.filter((o) => Number(o.quoteVolume) > 1000000)
+							.map((o) => o.symbol)
+							.filter((s) => s.endsWith(currency));
+	
+				return resolve(pairs);
+			}	
+		});
+	});
+}
+
 const fetch_candles = (symbol, interval, options={}) => {
 	return new Promise((resolve, reject) => {
 		binance_client.candlesticks(symbol, interval, (error, candles, symbol) => {
@@ -86,33 +108,45 @@ const fetch_candles = (symbol, interval, options={}) => {
 	});
 }
 
-const listen_candles_stream = (symbol, interval, onUpdate=()=>{}, onOpen=()=>{}) => {
+const listen_candles_stream = (symbol, interval, onUpdate=()=>{}, onStreamStart=()=>{}) => {
 	binance_client.websockets.candlesticks(symbol, interval, (tick) => {
 		const { 
 			E: event_time,
+			e: event_type,
+			s: symbol,
 			k: { 
-				o: open, 
-				c: close, 
-				x: isFinal 
+				o: open,
+				c: close,
+				l: low,
+				h: high,
+				x: isFinal,
+				v: volume,
+				n: trades,
+				i: interval,
+				q: quoteVolume,
+				V: buyVolume,
+				Q: quoteBuyVolume,
 			}
 		} = tick;
 
-		onUpdate(open, close, event_time, isFinal);
-	}, onOpen);
+		onUpdate(parseFloat(open), parseFloat(close), parseFloat(low), parseFloat(high), event_time, isFinal);
+
+	}, onStreamStart);
 }
 
-const listen_mini_ticker = (symbol, onUpdate=()=>{}, onOpen=()=>{}) => {
+const listen_mini_ticker = (symbol, onUpdate=()=>{}, onStreamStart=()=>{}) => {
 	binance_client.websockets.miniTicker(markets => {
 		const mini_tick = markets[symbol];
 		if(mini_tick) onUpdate(mini_tick);
-	}, onOpen);
+		
+	}, onStreamStart);
 }
 
 const get_price = (symbol) => {
 	return new Promise((resolve, reject) => {
 		binance_client.prices(symbol, (error, prices) => {
 			if (error) {
-				return reject(error.body);
+				return reject(error);
 			} else {
 				const result = parseFloat(prices[symbol]);
 				return resolve(result);
@@ -125,7 +159,7 @@ const get_available_balance = (currency="USDT") => {
 	return new Promise((resolve, reject) => {
 		binance_client.balance((error, balances) => {
 			if (error) {
-				return reject(error.body);
+				return reject(error);
 			} else {
 				const result = parseFloat(balances[currency].available);
 				return resolve(result);
@@ -135,7 +169,7 @@ const get_available_balance = (currency="USDT") => {
 }
 
 // Calculates how much of the asset(coin) the user's balance can buy within the balance limit.
-const calculate_buy_quantity = (symbol, trading_currency="USDT", balance_limit=15, filters={}, test=true) => {
+const calculate_buy_quantity = (symbol, trading_currency="USDT", balance_limit=15, filter={}, test=true) => {
 	// ****** FILTERS *******
 	// 	status: 'TRADING',
 	// 	min_price: 0.01,
@@ -155,12 +189,6 @@ const calculate_buy_quantity = (symbol, trading_currency="USDT", balance_limit=1
 	// 	icebergAllowed: true
 	// }
 
-	const clamp = (number, min, max) => {
-		const tmp_min = min ? min : number;
-		const tmp_max = max ? max : number;
-		return Math.max(tmp_min, Math.min(number, tmp_max));
-	}
-
 	return new Promise((resolve, reject) => {
 		let buying_balance = balance_limit;
 
@@ -177,17 +205,17 @@ const calculate_buy_quantity = (symbol, trading_currency="USDT", balance_limit=1
 			});
 		}
 		
-		const min_balance = filters?.min_notional ? filters.min_notional : 0;
+		const min_balance = filter?.min_notional ? filter?.min_notional : 10;
 		if(buying_balance >= min_balance) {
 			get_price(symbol).then(
 				(value) => {
-					const coin_price = clamp(value, filters.min_price, filters.max_price);
+					const coin_price = clamp(value, filter.min_price, filter.max_price);
 		
 					let quantity = buying_balance / coin_price;
-					quantity = clamp(quantity, filters.min_quantity, filters.max_quantity);
+					quantity = clamp(quantity, filter.min_quantity, filter.max_quantity);
 					
-					const price_digit = filters?.price_digit ? filters.price_digit : 4 ;
-					const quantity_digit = filters?.quantity_digit ? filters.quantity_digit : 4 ;
+					const price_digit = filter?.price_digit ? filter.price_digit : 4 ;
+					const quantity_digit = filter?.quantity_digit ? filter.quantity_digit : 4 ;
 
 					return resolve({
 						price : parseFloat(coin_price.toFixed(price_digit)),
@@ -195,109 +223,100 @@ const calculate_buy_quantity = (symbol, trading_currency="USDT", balance_limit=1
 					});
 				}, 
 				(error) => {
-					return reject("Error occured fetching the price of" + symbol + " : " + error);
+					return reject("Error occured fetching the price of " + symbol + " : " + error);
 				}
 			).catch((error) => {
-				return reject("Error occured fetching the price of" + symbol + " : " + error);
+				return reject("Error occured fetching the price of " + symbol + " : " + error);
 			});
 		} else {
-			return reject(buying_balance + " " + trading_currency + " " + "is below to minimum balance to purchase");
+			return reject(buying_balance + " " + trading_currency + " " + "is below minimum balance to purchase");
 		}
 	});	
 }
 
 // Spot market buy
-const spot_market_buy = (symbol, price, quantity, test=true, onSuccess, onError) => {
-	if(test) {
-		onSuccess(price, quantity);
-	} else {
-		binance_client.marketBuy(symbol, quantity, (error, response) => {
-			if(error) {
-				onError(error.body);
-			} else if(response) {
-				// Sample response
-				// {
-				// 	symbol: 'OCEANUSDT',
-				// 	orderId: 1,
-				// 	orderListId: -1,
-				// 	clientOrderId: 'asg7asg9ag9',
-				// 	transactTime: 1,
-				// 	price: '0.00000000',
-				// 	origQty: '8.00000000',
-				// 	executedQty: '8.00000000',
-				// 	cummulativeQuoteQty: '10.69200000',
-				// 	status: 'FILLED',
-				// 	timeInForce: 'GTC',
-				// 	type: 'MARKET',
-				// 	side: 'BUY',
-				// 	fills: [
-				// 	  {
-				// 		price: '1.33650000',
-				// 		qty: '8.00000000',
-				// 		commission: '0.00800000',
-				// 		commissionAsset: 'OCEAN',
-				// 		tradeId: 1
-				// 	  }
-				// 	]
-				// }
+const spot_market_buy = (symbol, price, quantity, onSuccess, onError) => {
+	binance_client.marketBuy(symbol, quantity, (error, response) => {
+		if(error) {
+			onError(error.body);
+		} else if(response) {
+			// Sample response
+			// {
+			// 	symbol: 'OCEANUSDT',
+			// 	orderId: 1,
+			// 	orderListId: -1,
+			// 	clientOrderId: 'asg7asg9ag9',
+			// 	transactTime: 1,
+			// 	price: '0.00000000',
+			// 	origQty: '8.00000000',
+			// 	executedQty: '8.00000000',
+			// 	cummulativeQuoteQty: '10.69200000',
+			// 	status: 'FILLED',
+			// 	timeInForce: 'GTC',
+			// 	type: 'MARKET',
+			// 	side: 'BUY',
+			// 	fills: [
+			// 	  {
+			// 		price: '1.33650000',
+			// 		qty: '8.00000000',
+			// 		commission: '0.00800000',
+			// 		commissionAsset: 'OCEAN',
+			// 		tradeId: 1
+			// 	  }
+			// 	]
+			// }
 
-				const actual_buying_price = response.fills[0]?.price || price ;
-				const actual_quantity = response.fills[0]?.qty || quantity ;
+			const actual_buying_price = Number(response.fills[0]?.price || price) ;
+			const actual_quantity = Number(response.fills[0]?.qty || quantity) ;
 
-				onSuccess(actual_buying_price, actual_quantity);
-			}
-		});
-	}
+			onSuccess(actual_buying_price, actual_quantity);
+		}
+	});
 }
 
 // Spot market sell
-const spot_market_sell = (symbol, price, quantity, test=true, onSuccess, onError) => {
-	if(test) {
-		onSuccess(price, quantity);
-	} else {
-		binance_client.marketSell(symbol, quantity, (error, response) => {
-			if(error) {
-				onError(error);
-			} else if(response) {
-				// Sample response ( It is not updated! Try it)
-				// {
-				// 	symbol: 'OCEANUSDT',
-				// 	orderId: 1,
-				// 	orderListId: -1,
-				// 	clientOrderId: 'as521agags',
-				// 	transactTime: 1,
-				// 	price: '0.00000000',
-				// 	origQty: '8.00000000',
-				// 	executedQty: '8.00000000',
-				// 	cummulativeQuoteQty: '10.69200000',
-				// 	status: 'FILLED',
-				// 	timeInForce: 'GTC',
-				// 	type: 'MARKET',
-				// 	side: 'BUY',
-				// 	fills: [
-				// 	  {
-				// 		price: '1.33650000',
-				// 		qty: '8.00000000',
-				// 		commission: '0.00800000',
-				// 		commissionAsset: 'OCEAN',
-				// 		tradeId: 1
-				// 	  }
-				// 	]
-				// }
+const spot_market_sell = (symbol, price, quantity, onSuccess, onError) => {
+	binance_client.marketSell(symbol, quantity, (error, response) => {
+		if(error) {
+			onError(error);
+		} else if(response) {
+			// Sample response
+			// {
+			// 	symbol: 'WINUSDT',
+			// 	orderId: 16632,
+			// 	orderListId: -1,
+			// 	clientOrderId: '125512sgdgfs',
+			// 	transactTime: 153gsd,
+			// 	price: '0.00000000',
+			// 	origQty: '7500.00000000',
+			// 	executedQty: '7500.00000000',
+			// 	cummulativeQuoteQty: '10.13700000',
+			// 	status: 'FILLED',
+			// 	timeInForce: 'GTC',
+			// 	type: 'MARKET',
+			// 	side: 'SELL',
+			// 	fills: [
+			// 	  [Object: null prototype] {
+			// 		price: '0.00135160',
+			// 		qty: '7500.00000000',
+			// 		commission: '0.01013700',
+			// 		commissionAsset: 'USDT',
+			// 		tradeId: 215125
+			// 	  }
+			// 	]
+			//}
 
-				// const { 
-				// 	price: selling_price,
-				// 	qty: selling_quantity,
-				// } = response.fills[0];
+			const actual_selling_price = Number(response.fills[0]?.price || price) ;
+			const actual_quantity = Number(response.fills[0]?.qty || quantity) ;
 
-				onSuccess(price, quantity);
-			}
-		});
-	}
+			onSuccess(actual_selling_price, actual_quantity);
+		}
+	});
 }
 
 exports.authenticate_user = authenticate_user;
 
+exports.get_available_pairs = get_available_pairs;
 exports.fetch_exchange_info = fetch_exchange_info;
 exports.fetch_candles = fetch_candles;
 
