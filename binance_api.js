@@ -283,10 +283,10 @@ const spot_market_sell = (symbol, price, quantity, onSuccess, onError) => {
 			// Sample response
 			// {
 			// 	symbol: 'WINUSDT',
-			// 	orderId: 213709534,
+			// 	orderId: 16632,
 			// 	orderListId: -1,
-			// 	clientOrderId: 'Eo0T3qMzMit7yaI5zXN8Pv',
-			// 	transactTime: 1620347306589,
+			// 	clientOrderId: '125512sgdgfs',
+			// 	transactTime: 153gsd,
 			// 	price: '0.00000000',
 			// 	origQty: '7500.00000000',
 			// 	executedQty: '7500.00000000',
@@ -301,7 +301,7 @@ const spot_market_sell = (symbol, price, quantity, onSuccess, onError) => {
 			// 		qty: '7500.00000000',
 			// 		commission: '0.01013700',
 			// 		commissionAsset: 'USDT',
-			// 		tradeId: 53023246
+			// 		tradeId: 215125
 			// 	  }
 			// 	]
 			//}
