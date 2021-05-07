@@ -3,10 +3,16 @@ const Binance = require('node-binance-api');
 
 let binance_client = new Binance();
 
+const clamp = (number, min, max) => {
+	const tmp_min = min ? min : number;
+	const tmp_max = max ? max : number;
+	return Math.max(tmp_min, Math.min(number, tmp_max));
+}
+
 const authenticate_user = () => {
 	const BINANCE_API_KEY = require("./binance_secrets.json");
 
-	binance_client.setOptions({
+	binance_client = new Binance({
 		APIKEY: BINANCE_API_KEY.api_key,
 		APISECRET: BINANCE_API_KEY.api_secret
 	});
@@ -54,6 +60,7 @@ const get_available_pairs = (currency="USDT") => {
 				return reject("Error occured fetching previous day statistics " + error);
 			} else {
 				const pairs = prev_stats
+							.filter((o) => Number(o.quoteVolume) > 1000000)
 							.map((o) => o.symbol)
 							.filter((s) => s.endsWith(currency));
 	
@@ -182,12 +189,6 @@ const calculate_buy_quantity = (symbol, trading_currency="USDT", balance_limit=1
 	// 	icebergAllowed: true
 	// }
 
-	const clamp = (number, min, max) => {
-		const tmp_min = min ? min : number;
-		const tmp_max = max ? max : number;
-		return Math.max(tmp_min, Math.min(number, tmp_max));
-	}
-
 	return new Promise((resolve, reject) => {
 		let buying_balance = balance_limit;
 
@@ -204,7 +205,7 @@ const calculate_buy_quantity = (symbol, trading_currency="USDT", balance_limit=1
 			});
 		}
 		
-		const min_balance = filter?.min_notional ? filter?.min_notional : 0;
+		const min_balance = filter?.min_notional ? filter?.min_notional : 10;
 		if(buying_balance >= min_balance) {
 			get_price(symbol).then(
 				(value) => {
@@ -228,7 +229,7 @@ const calculate_buy_quantity = (symbol, trading_currency="USDT", balance_limit=1
 				return reject("Error occured fetching the price of " + symbol + " : " + error);
 			});
 		} else {
-			return reject(buying_balance + " " + trading_currency + " " + "is below to minimum balance to purchase");
+			return reject(buying_balance + " " + trading_currency + " " + "is below minimum balance to purchase");
 		}
 	});	
 }
@@ -265,8 +266,8 @@ const spot_market_buy = (symbol, price, quantity, onSuccess, onError) => {
 			// 	]
 			// }
 
-			const actual_buying_price = response.fills[0]?.price || price ;
-			const actual_quantity = response.fills[0]?.qty || quantity ;
+			const actual_buying_price = Number(response.fills[0]?.price || price) ;
+			const actual_quantity = Number(response.fills[0]?.qty || quantity) ;
 
 			onSuccess(actual_buying_price, actual_quantity);
 		}
@@ -279,38 +280,36 @@ const spot_market_sell = (symbol, price, quantity, onSuccess, onError) => {
 		if(error) {
 			onError(error);
 		} else if(response) {
-			// Sample response ( It is not updated! Try it)
+			// Sample response
 			// {
-			// 	symbol: 'OCEANUSDT',
-			// 	orderId: 1,
+			// 	symbol: 'WINUSDT',
+			// 	orderId: 213709534,
 			// 	orderListId: -1,
-			// 	clientOrderId: 'as521agags',
-			// 	transactTime: 1,
+			// 	clientOrderId: 'Eo0T3qMzMit7yaI5zXN8Pv',
+			// 	transactTime: 1620347306589,
 			// 	price: '0.00000000',
-			// 	origQty: '8.00000000',
-			// 	executedQty: '8.00000000',
-			// 	cummulativeQuoteQty: '10.69200000',
+			// 	origQty: '7500.00000000',
+			// 	executedQty: '7500.00000000',
+			// 	cummulativeQuoteQty: '10.13700000',
 			// 	status: 'FILLED',
 			// 	timeInForce: 'GTC',
 			// 	type: 'MARKET',
-			// 	side: 'BUY',
+			// 	side: 'SELL',
 			// 	fills: [
-			// 	  {
-			// 		price: '1.33650000',
-			// 		qty: '8.00000000',
-			// 		commission: '0.00800000',
-			// 		commissionAsset: 'OCEAN',
-			// 		tradeId: 1
+			// 	  [Object: null prototype] {
+			// 		price: '0.00135160',
+			// 		qty: '7500.00000000',
+			// 		commission: '0.01013700',
+			// 		commissionAsset: 'USDT',
+			// 		tradeId: 53023246
 			// 	  }
 			// 	]
-			// }
+			//}
 
-			// const { 
-			// 	price: selling_price,
-			// 	qty: selling_quantity,
-			// } = response.fills[0];
+			const actual_selling_price = Number(response.fills[0]?.price || price) ;
+			const actual_quantity = Number(response.fills[0]?.qty || quantity) ;
 
-			onSuccess(price, quantity);
+			onSuccess(actual_selling_price, actual_quantity);
 		}
 	});
 }

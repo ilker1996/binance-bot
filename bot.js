@@ -98,11 +98,11 @@ function run(test=true) {
 					global_logger.info("Total profit : %d", total_profit);
 				}
 
-				const tracker = new Tracker(pair_name, config.stop_loss_multiplier, config.profit_multiplier, config.take_profit_multiplier, buyer, seller, pair_logger, buy_callback, sell_callback);
+				const tracker = new Tracker(pair_name, buyer, seller, pair_logger, buy_callback, sell_callback);
 
 				const signaler = new Signaler(pair_name, config.tick_round, config.indicator_names, filter.price_digit, tracker, pair_logger);
 				
-				if(config.trade_type === trade_type.SPOT) start_spot_trade(pair_name, config.interval, pair_logger, tracker, signaler);
+				(config.trade_type === trade_type.SPOT) && start_spot_trade(pair_name, config.interval, pair_logger, tracker, signaler);
 			}
 
 			global_logger.info("Initial balance : %d", account_balance);
@@ -117,28 +117,37 @@ connectivity((online) => {
 		if(config.session_type == session_type.BACKTEST) {
 
 			let total_profit = 0;
+			let signal_count = 0;
 
-			const onProfit = (profit) => {
+			const onProfit = (profit) =>  {
 				total_profit += profit;
-				
+				signal_count++;
 			}
 
-			const test = async (indicator_names) => {
+			const test = async () => {
 				const coins = config.coins;
-				
+
 				for(let coin of coins) 
 				{
 					const pair_name = coin.concat(config.currency);
 					console.log(pair_name);
 
-					await backtest(pair_name, config.interval, indicator_names, config.profit_multiplier, config.take_profit_multiplier, config.stop_loss_multiplier, onProfit);
+					const day_in_ms = 86400000 * 3; // 3 day in between
+
+					let start_time = new Date("08/01/2020 03:00:00").getTime();
+					let current_time = new Date("05/01/2021 03:00:00").getTime();
+
+					while(start_time < current_time) {
+						const end_time = start_time + day_in_ms;
+						await backtest(pair_name, config.interval, config.indicator_names, start_time, end_time, onProfit);
+						start_time = end_time;
+					}
 				}
 
-				global_logger.info("% %d", 100 * total_profit);
+				global_logger.info("5 minute candles - 0.5 thickness rsi 15 - Total Profit : % %d , Signal Count : %d, Average Profit : % %d", 100 * total_profit, signal_count, 100 * total_profit / signal_count);
 			};
 			
-			config.indicator_names.forEach((i) => test([i]));
-			
+			test();
 		}
 		else if(config.session_type == session_type.LIVETEST) run(true);
 		else if(config.session_type == session_type.TRADE) run(false);

@@ -61,11 +61,11 @@ class Signaler {
             const low_prices = this.candles.low_prices.concat(low).slice(1);
             const high_prices = this.candles.high_prices.concat(high).slice(1);
 
-            const signal = this.indicator.test(open_prices, close_prices, low_prices, high_prices);
+            const { signal, stop_loss_price, take_profit_price } = this.indicator.test(open_prices, close_prices, low_prices, high_prices);
             
             if(!this.skip_long_signal && signal == signal_type.LONG) {
                 this.logger.info("Long signal");
-                this.tracker.long_signal();
+                this.tracker.long_signal(stop_loss_price, take_profit_price);
                 this.skip_long_signal = true;
             } else if(!this.skip_short_signal && signal == signal_type.SHORT) {
                 this.logger.info("Short signal");

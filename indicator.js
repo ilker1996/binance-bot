@@ -6,11 +6,21 @@ const signal_type = {
 	NONE: 0
 }
 
+if (!Array.prototype.last){
+    Array.prototype.last = function(){
+        return this[this.length - 1];
+    };
+};
+
+const clamp = (number, min, max) => {
+	const tmp_min = min ? min : number;
+	const tmp_max = max ? max : number;
+	return Math.max(tmp_min, Math.min(number, tmp_max));
+}
+
 const zip = (a, b, c, d) => a.map((k, i) => [k, b[i], c[i], d[i]]);
 
 const rsi = (values) => RSI.calculate({period: 14, values}).slice(-1)[0];
-
-const macd_momentum = (values) => MACD.calculate({fastPeriod: 12, slowPeriod: 26, signalPeriod: 9, values}).slice(-1)[0].histogram;
 
 class Indicator {
     constructor(indicator_names, precision) {
@@ -19,7 +29,6 @@ class Indicator {
 		this.indicator_map = {
 			"ema_6_12" : this.ema_crossover_6_12,
 			"sma_6_12" : this.sma_crossover_6_12,
-			"candlestick_pattern" : this.candlestick_pattern,
 			"heikinashi" : this.heikinashi,
 		}
 
@@ -45,12 +54,18 @@ class Indicator {
 										.slice(-2).map(precise);
 
 		let signal = signal_type.NONE;
+		let stop_loss_price = 0;
+		let take_profit_price = 0;
 
 		if( curr_ema6 * 1.001 > curr_ema12
 			&& prev_ema6 <= prev_ema12 * 1.001
 			&& rsi(close_prices) >= 50)
 		{
+			const buying_price = close_prices.last();
+
 			signal = signal_type.LONG;
+			stop_loss_price = buying_price * 0.99;
+			take_profit_price = buying_price * 1.015;
 		} 
 		else if(curr_ema12 > curr_ema6
 			&& prev_ema12 <= prev_ema6) 
@@ -58,7 +73,11 @@ class Indicator {
 			signal = signal_type.NONE;
 		}
 		
-		return signal;
+		return {
+			signal,
+			stop_loss_price,
+			take_profit_price
+		};
 	}
 	
 	sma_crossover_6_12(open_prices, close_prices, low_prices, high_prices, price_digit) {
@@ -70,12 +89,18 @@ class Indicator {
 									.slice(-2).map(precise);
 
 		let signal = signal_type.NONE;
+		let stop_loss_price = 0;
+		let take_profit_price = 0;
 
 		if( curr_sma6 * 1.001 > curr_sma12
 			&& prev_sma6 * 1.001 <= prev_sma12
 			&& rsi(close_prices) >= 50)
 		{
+			const buying_price = close_prices.last();
+			
 			signal = signal_type.LONG;
+			stop_loss_price = buying_price * 0.99;
+			take_profit_price = buying_price * 1.015;
 		} 
 		else if(curr_sma12 > curr_sma6
 			&& prev_sma12 <= prev_sma6)
@@ -83,62 +108,47 @@ class Indicator {
 			signal = signal_type.NONE;
 		}
 		
-		return signal;
-	}
-	
-	candlestick_pattern(open_prices, close_prices, low_prices, high_prices, price_digit) {
-		const precise = (number) => parseFloat(number.toFixed(price_digit));
-
-		let signal = signal_type.NONE;
-
-		const [prev_open, curr_open] = open_prices.slice(-2).map(precise);
-		const [prev_close, curr_close] = close_prices.slice(-2).map(precise);
-		const [prev_low, curr_low] = low_prices.slice(-2).map(precise);
-		const [prev_high, curr_high] = high_prices.slice(-2).map(precise);
-
-		if( curr_open > prev_close
-			&& curr_close > prev_open
-			&& curr_close > curr_open
-			&& prev_open > prev_close
-			&& curr_low > prev_low
-			&& curr_high > prev_high
-			&& rsi(close_prices) >= 50)
-		{
-			signal = signal_type.LONG;
-		}
-		
-		return signal;
+		return {
+			signal,
+			stop_loss_price,
+			take_profit_price
+		};
 	}
 
 	heikinashi(open_prices, close_prices, low_prices, high_prices, price_digit) {
-		const precise = (number) => parseFloat(number.toFixed(price_digit));
-
 		const candle_list = HeikinAshi.calculate({open: open_prices, close: close_prices, low: low_prices, high: high_prices});
 
-		const {open, high, low , close} = candle_list;
+		const open = candle_list.open.last();
+		const high = candle_list.high.last();
+		const low = candle_list.low.last();
+		const close = candle_list.close.last();
 
-		const candles = zip(open.slice(-2), high.slice(-2), low.slice(-2), close.slice(-2)).map(subarray => subarray.map(precise));
-
-		const isThin = (open, high, low, close) => (Math.abs(close - open) / Math.abs(high - low)) <= 0.3;
-		const isThick = (open, high, low, close) => {
-			const high_momentum = close > open * 1.005 || open > close * 1.005;
-			return high_momentum && low === open && (Math.abs(close - open) / Math.abs(high - low)) >= 0.6;
-		}
-
-		const isGreen = (open, high, low, close) => close > open;
-		const isRed = (open, high, low, close) => close < open;
+		const isThick = (open, high, low, close) => (close > open * 1.005 || open > close * 1.005) && (Math.abs(close - open) / Math.abs(high - low)) >= 0.5;
+		const isRed = (open, close) => close < open;
+		const isGreen = (open, close) => open < close;
 
 		let signal = signal_type.NONE;
+		let stop_loss_price = 0;
+		let take_profit_price = 0;
 
-		const bullish_candles = candles.map((array) => isGreen(...array) && isThick(...array));
-		const bearish_candles = candles.map((array) => isRed(...array) && isThin(...array));
+		if( isRed(open, close) && isThick(open, high, low, close) && rsi(candle_list.close) <= 15 )
+		{	
+			const buying_price = close_prices.last();
+			const low_price = low_prices.last();
 
-		if(bearish_candles[0] && bullish_candles[1] && rsi(close_prices) >= 45 && macd_momentum(close_prices) > 0)
-		{
+			const stop_loss_multiplier = clamp(low_price / buying_price, 0.96, 0.99);
+			const take_profit_multiplier = 1 + 2 * Math.abs(1 - stop_loss_multiplier);
+
 			signal = signal_type.LONG;
+			stop_loss_price = buying_price * stop_loss_multiplier;
+			take_profit_price = buying_price * take_profit_multiplier;
 		}
 		
-		return signal;
+		return {
+			signal,
+			stop_loss_price,
+			take_profit_price
+		};
 	}
 
     test(open_prices, close_prices, low_prices, high_prices) {
