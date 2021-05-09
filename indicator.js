@@ -35,8 +35,8 @@ class Indicator {
 		this.indicator_function = (open_prices, close_prices, low_prices, high_prices) => {
 			for(let name of indicator_names) {
  				if(this.indicator_map[name]) {
-					const signal = this.indicator_map[name](open_prices, close_prices, low_prices, high_prices, this.precision);
-					if(signal != signal_type.NONE) return signal;
+					const result = this.indicator_map[name](open_prices, close_prices, low_prices, high_prices, this.precision);
+					if(result.signal != signal_type.NONE) return result;
 				}
 			}
 

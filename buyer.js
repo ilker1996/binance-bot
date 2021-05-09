@@ -12,9 +12,9 @@ class Buyer {
         this.test = test;
     }
 
-    buy(pair, onSuccessfulBuy) {
-        binance_api.calculate_buy_quantity(pair, this.trading_currency, this.balance_limit, this.filter, this.test)
-        .then( 
+    buy(pair, buying_price, onSuccessfulBuy) {
+        binance_api.calculate_buy_quantity(buying_price, this.trading_currency, this.balance_limit, this.filter, this.test)
+        .then(
             ({price, quantity}) => {
                 if(!this.test) {
                     binance_api.spot_market_buy(pair, price, quantity,

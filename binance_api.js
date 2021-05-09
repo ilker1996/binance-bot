@@ -169,7 +169,7 @@ const get_available_balance = (currency="USDT") => {
 }
 
 // Calculates how much of the asset(coin) the user's balance can buy within the balance limit.
-const calculate_buy_quantity = (symbol, trading_currency="USDT", balance_limit=15, filter={}, test=true) => {
+const calculate_buy_quantity = (buying_price, trading_currency="USDT", balance_limit=15, filter={}, test=true) => {
 	// ****** FILTERS *******
 	// 	status: 'TRADING',
 	// 	min_price: 0.01,
@@ -205,28 +205,21 @@ const calculate_buy_quantity = (symbol, trading_currency="USDT", balance_limit=1
 			});
 		}
 		
-		const min_balance = filter?.min_notional ? filter?.min_notional : 10;
+		const min_balance = filter?.min_notional ? Number(filter?.min_notional) : 10;
 		if(buying_balance >= min_balance) {
-			get_price(symbol).then(
-				(value) => {
-					const coin_price = clamp(value, filter.min_price, filter.max_price);
-		
-					let quantity = buying_balance / coin_price;
-					quantity = clamp(quantity, filter.min_quantity, filter.max_quantity);
-					
-					const price_digit = filter?.price_digit ? filter.price_digit : 4 ;
-					const quantity_digit = filter?.quantity_digit ? filter.quantity_digit : 4 ;
+			const coin_price = clamp(buying_price, Number(filter.min_price), Number(filter.max_price));
+			const quantity = clamp(buying_balance / coin_price, Number(filter.min_quantity), Number(filter.max_quantity));
+			
+			console.log(buying_balance / coin_price, Number(filter.min_quantity), Number(filter.max_quantity));
+			const price_digit = filter?.price_digit ? Number(filter.price_digit) : 4;
+			const quantity_digit = filter?.quantity_digit ? Number(filter.quantity_digit) : 4;
 
-					return resolve({
-						price : parseFloat(coin_price.toFixed(price_digit)),
-						quantity : parseFloat(quantity.toFixed(quantity_digit))
-					});
-				}, 
-				(error) => {
-					return reject("Error occured fetching the price of " + symbol + " : " + error);
-				}
-			).catch((error) => {
-				return reject("Error occured fetching the price of " + symbol + " : " + error);
+			console.log("Balance : %d, Price : %d, Quantity : %d ", buying_balance, coin_price, quantity);
+			console.log("Calculated price : %d, calculated quantity : %d ", parseFloat(coin_price.toFixed(price_digit)), parseFloat(quantity.toFixed(quantity_digit)));
+
+			return resolve({
+				price : parseFloat(coin_price.toFixed(price_digit)),
+				quantity : parseFloat(quantity.toFixed(quantity_digit))
 			});
 		} else {
 			return reject(buying_balance + " " + trading_currency + " " + "is below minimum balance to purchase");
@@ -266,8 +259,13 @@ const spot_market_buy = (symbol, price, quantity, onSuccess, onError) => {
 			// 	]
 			// }
 
-			const actual_buying_price = Number(response.fills[0]?.price || price) ;
-			const actual_quantity = Number(response.fills[0]?.qty || quantity) ;
+			let actual_buying_price = Number(price);
+			let actual_quantity = Number(quantity);
+
+			if(response?.status === "FILLED" && Number(response?.fills[0]?.qty) >= Number(quantity)) {
+				actual_buying_price = Number(response?.fills[0]?.price) || Number(price);
+				actual_quantity = Number(response?.fills[0]?.qty) || Number(quantity);
+			}
 
 			onSuccess(actual_buying_price, actual_quantity);
 		}
@@ -306,10 +304,15 @@ const spot_market_sell = (symbol, price, quantity, onSuccess, onError) => {
 			// 	]
 			//}
 
-			const actual_selling_price = Number(response.fills[0]?.price || price) ;
-			const actual_quantity = Number(response.fills[0]?.qty || quantity) ;
+			let actual_selling_price = Number(price);
+			let actual_quantity = Number(quantity);
 
-			onSuccess(actual_selling_price, actual_quantity);
+			if(response?.status === "FILLED" && Number(response?.fills[0]?.qty) >= Number(quantity)) {
+				actual_selling_price = Number(response?.fills[0]?.price) || Number(price);
+				actual_quantity = Number(response?.fills[0]?.qty) || Number(quantity);
+			}
+
+			onSuccess(actual_selling_price, actual_quantity);	
 		}
 	});
 }

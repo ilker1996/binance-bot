@@ -52,7 +52,7 @@ function start_spot_trade(pair, interval, logger, tracker, signaler) {
 };
 
 function run(test=true) {
-	let account_balance = 1000;
+	let allocated_balance = 0;
 	let trading_fee = 0;
 	let total_profit = 0;
 
@@ -79,22 +79,24 @@ function run(test=true) {
 				const seller = new Seller(pair_logger, test);
 				
 				const buy_callback = (price, quantity) => {
-					account_balance -= price * quantity;
+					allocated_balance += price * quantity;
 					trading_fee += price * quantity * 0.001;
 
 					pair_logger.info("Market Buy - price : %f , quantity : %f", price, quantity);
 					
-					global_logger.info("Balance : %d", account_balance);
+					global_logger.info("Allocated balance : %d", allocated_balance);
 					global_logger.info("Trading Fee : %d", trading_fee);
 				}
 
 				const sell_callback = (price, quantity, profit) => {
-					account_balance += price * quantity;
+					allocated_balance -= price * quantity - profit;
+					trading_fee += price * quantity * 0.001;
 					total_profit += profit;
 
 					pair_logger.info("Market Sell - price : %f , quantity : %f", price, quantity);
 
-					global_logger.info("Balance : %d", account_balance);
+					global_logger.info("Allocated balance : %d", allocated_balance);
+					global_logger.info("Trading Fee : %d", trading_fee);
 					global_logger.info("Total profit : %d", total_profit);
 				}
 
@@ -104,8 +106,6 @@ function run(test=true) {
 				
 				(config.trade_type === trade_type.SPOT) && start_spot_trade(pair_name, config.interval, pair_logger, tracker, signaler);
 			}
-
-			global_logger.info("Initial balance : %d", account_balance);
 		},
 		(error) => global_logger.error(error)
 	)

@@ -35,8 +35,8 @@ class Tracker {
         }
     }
 
-    long_signal(stop_loss_price, take_profit_price) {
-        this.buyer.buy(this.pair, (price, quantity) => {
+    long_signal(entry_price, stop_loss_price, take_profit_price) {
+        this.buyer.buy(this.pair, entry_price, (price, quantity) => {
             this.add_track(price, quantity, stop_loss_price, take_profit_price);
             this.buy_callback(price, quantity);
         });
