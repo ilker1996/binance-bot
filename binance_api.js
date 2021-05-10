@@ -1,7 +1,12 @@
 // ************* Functions for Binance API ******************* 
 const Binance = require('node-binance-api');
 
-let binance_client = new Binance();
+const market_type = {
+	SPOT: "spot",
+	FUTURES: "futures",
+}
+
+let client = new Binance();
 
 const clamp = (number, min, max) => {
 	const tmp_min = min ? min : number;
@@ -12,7 +17,7 @@ const clamp = (number, min, max) => {
 const authenticate_user = () => {
 	const BINANCE_API_KEY = require("./binance_secrets.json");
 
-	binance_client = new Binance({
+	client = new Binance({
 		APIKEY: BINANCE_API_KEY.api_key,
 		APISECRET: BINANCE_API_KEY.api_secret
 	});
@@ -20,7 +25,7 @@ const authenticate_user = () => {
 
 const fetch_exchange_info = () => {
 	return new Promise((resolve, reject) => {
-		binance_client.exchangeInfo((error, response) => {
+		client.exchangeInfo((error, response) => {
 			if (error) {
 				return reject("Error occured fetching exchange info " + error);
 			} else {
@@ -53,16 +58,17 @@ const fetch_exchange_info = () => {
 	});
 }
 
-const get_available_pairs = (currency="USDT") => {
+const get_available_coins = (currency="USDT") => {
 	return new Promise((resolve, reject) => {
-		binance_client.prevDay(false, (error, prev_stats) => {
+		client.prevDay(false, (error, prev_stats) => {
 			if(error) {
 				return reject("Error occured fetching previous day statistics " + error);
 			} else {
 				const pairs = prev_stats
-							.filter((o) => Number(o.quoteVolume) > 1000000)
-							.map((o) => o.symbol)
-							.filter((s) => s.endsWith(currency));
+							.filter(o => Number(o.quoteVolume) > 100000000 && Number(o.quoteVolume) < 100000000000)
+							.map(o => o.symbol)
+							.filter(s => s.endsWith(currency))
+							.map(s => s.replace(currency, ""));
 	
 				return resolve(pairs);
 			}	
@@ -72,7 +78,7 @@ const get_available_pairs = (currency="USDT") => {
 
 const fetch_candles = (symbol, interval, options={}) => {
 	return new Promise((resolve, reject) => {
-		binance_client.candlesticks(symbol, interval, (error, candles, symbol) => {
+		client.candlesticks(symbol, interval, (error, candles, symbol) => {
 			if (error) {
 				return reject("Error occured fetching candles " + error);
 			} else {
@@ -108,8 +114,8 @@ const fetch_candles = (symbol, interval, options={}) => {
 	});
 }
 
-const listen_candles_stream = (symbol, interval, onUpdate=()=>{}, onStreamStart=()=>{}) => {
-	binance_client.websockets.candlesticks(symbol, interval, (tick) => {
+const listen_candles_stream = (symbol, interval, market=market_type.SPOT, onUpdate=()=>{}, onStreamStart=()=>{}) => {
+	const ticker = (tick) => {
 		const { 
 			E: event_time,
 			e: event_type,
@@ -130,12 +136,18 @@ const listen_candles_stream = (symbol, interval, onUpdate=()=>{}, onStreamStart=
 		} = tick;
 
 		onUpdate(parseFloat(open), parseFloat(close), parseFloat(low), parseFloat(high), event_time, isFinal);
+	};
 
-	}, onStreamStart);
+	if(market == market_type.SPOT) {
+		client.websockets.candlesticks(symbol, interval, ticker, onStreamStart);
+	} 
+	else if(market == market_type.FUTURES) {
+		client.futuresSubscribe(symbol.toString().toLowerCase() + "@kline_" + interval.toString(), ticker, onStreamStart);
+	}
 }
 
 const listen_mini_ticker = (symbol, onUpdate=()=>{}, onStreamStart=()=>{}) => {
-	binance_client.websockets.miniTicker(markets => {
+	client.websockets.miniTicker(markets => {
 		const mini_tick = markets[symbol];
 		if(mini_tick) onUpdate(mini_tick);
 		
@@ -144,7 +156,7 @@ const listen_mini_ticker = (symbol, onUpdate=()=>{}, onStreamStart=()=>{}) => {
 
 const get_price = (symbol) => {
 	return new Promise((resolve, reject) => {
-		binance_client.prices(symbol, (error, prices) => {
+		client.prices(symbol, (error, prices) => {
 			if (error) {
 				return reject(error);
 			} else {
@@ -157,7 +169,7 @@ const get_price = (symbol) => {
 
 const get_available_balance = (currency="USDT") => {
 	return new Promise((resolve, reject) => {
-		binance_client.balance((error, balances) => {
+		client.balance((error, balances) => {
 			if (error) {
 				return reject(error);
 			} else {
@@ -169,7 +181,7 @@ const get_available_balance = (currency="USDT") => {
 }
 
 // Calculates how much of the asset(coin) the user's balance can buy within the balance limit.
-const calculate_buy_quantity = (buying_price, trading_currency="USDT", balance_limit=15, filter={}, test=true) => {
+const calculate_buy_quantity = (buying_price, trading_currency="USDT", balance_limit=10, filter={}, test=true) => {
 	// ****** FILTERS *******
 	// 	status: 'TRADING',
 	// 	min_price: 0.01,
@@ -205,7 +217,7 @@ const calculate_buy_quantity = (buying_price, trading_currency="USDT", balance_l
 			});
 		}
 		
-		const min_balance = filter?.min_notional ? Number(filter?.min_notional) : 10;
+		const min_balance = filter?.min_notional ? Number(filter?.min_notional) : balance_limit;
 		if(buying_balance >= min_balance) {
 			const coin_price = clamp(buying_price, Number(filter.min_price), Number(filter.max_price));
 			const quantity = clamp(buying_balance / coin_price, Number(filter.min_quantity), Number(filter.max_quantity));
@@ -229,7 +241,7 @@ const calculate_buy_quantity = (buying_price, trading_currency="USDT", balance_l
 
 // Spot market buy
 const spot_market_buy = (symbol, price, quantity, onSuccess, onError) => {
-	binance_client.marketBuy(symbol, quantity, (error, response) => {
+	client.marketBuy(symbol, quantity, (error, response) => {
 		if(error) {
 			onError(error.body);
 		} else if(response) {
@@ -274,7 +286,7 @@ const spot_market_buy = (symbol, price, quantity, onSuccess, onError) => {
 
 // Spot market sell
 const spot_market_sell = (symbol, price, quantity, onSuccess, onError) => {
-	binance_client.marketSell(symbol, quantity, (error, response) => {
+	client.marketSell(symbol, quantity, (error, response) => {
 		if(error) {
 			onError(error);
 		} else if(response) {
@@ -317,9 +329,11 @@ const spot_market_sell = (symbol, price, quantity, onSuccess, onError) => {
 	});
 }
 
+exports.market_type = market_type;
+
 exports.authenticate_user = authenticate_user;
 
-exports.get_available_pairs = get_available_pairs;
+exports.get_available_coins = get_available_coins;
 exports.fetch_exchange_info = fetch_exchange_info;
 exports.fetch_candles = fetch_candles;
 

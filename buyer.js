@@ -19,7 +19,7 @@ class Buyer {
                 if(!this.test) {
                     binance_api.spot_market_buy(pair, price, quantity,
                         onSuccessfulBuy,
-                        (error) => this.logger.error("Error occured during Market Buy : %s", error)
+                        (error) => this.logger.error("Error occured during Market Buy for price : %d and quantity : %d , %s", price, quantity, error)
                     );
                 } else {
                     onSuccessfulBuy(price, quantity);

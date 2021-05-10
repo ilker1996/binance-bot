@@ -1,7 +1,8 @@
 const connectivity = require('connectivity');
 const retry = require('async-retry');
 
-const binance_api = require('./binance_api');
+const api = require('./binance_api');
+
 const { backtest } = require('./backtest');
 const { add_logger } = require('./logger');
 const { Signaler } = require('./signaler');
@@ -10,11 +11,6 @@ const { Buyer } = require('./buyer');
 const { Seller } = require('./seller');
 
 const config = require("./config.json");
-
-const trade_type = {
-	SPOT: "spot",
-	FUTURE: "future",
-}
 
 const session_type = {
 	BACKTEST: "backtest",
@@ -34,7 +30,7 @@ function start_spot_trade(pair, interval, logger, tracker, signaler) {
 
 		// Retry 10 times with 2 seconds intervals
 		try {
-			candles = await retry(async bail => await binance_api.fetch_candles(pair, interval), {maxTimeout : 2000, retries: 10});
+			candles = await retry(async bail => await api.fetch_candles(pair, interval), {maxTimeout : 2000, retries: 10});
 			signaler.set_candles(candles);
 		} catch(error) {
 			logger.error(error);
@@ -43,7 +39,7 @@ function start_spot_trade(pair, interval, logger, tracker, signaler) {
 		logger.info("Subscribed to %s candle stream", pair);
 	}
 
-	binance_api.listen_candles_stream(pair, interval, (open, close, low, high, event_time, isFinal) => {
+	api.listen_candles_stream(pair, interval, api.market_type.SPOT, (open, close, low, high, event_time, isFinal) => {
 		if(candles) {
 			signaler.feed(open, close, low, high, event_time, isFinal);
 			tracker.feed(close);
@@ -58,11 +54,11 @@ function run(test=true) {
 
 	if(!test) {
 		global_logger.info("Authenticating to Binance...");
-		binance_api.authenticate_user();
+		api.authenticate_user();
 	}
 	
 	global_logger.info("Fetching exchange info from Binance...");
-	binance_api.fetch_exchange_info()
+	api.fetch_exchange_info()
 	.then(
 		(filters) => {
 			for(let coin of config.coins)
@@ -104,7 +100,7 @@ function run(test=true) {
 
 				const signaler = new Signaler(pair_name, config.tick_round, config.indicator_names, filter.price_digit, tracker, pair_logger);
 				
-				(config.trade_type === trade_type.SPOT) && start_spot_trade(pair_name, config.interval, pair_logger, tracker, signaler);
+				(config.market_type === api.market_type.SPOT) && start_spot_trade(pair_name, config.interval, pair_logger, tracker, signaler);
 			}
 		},
 		(error) => global_logger.error(error)
@@ -144,7 +140,7 @@ connectivity((online) => {
 					}
 				}
 
-				global_logger.info("5 minute candles - 0.5 thickness rsi 15 - Total Profit : % %d , Signal Count : %d, Average Profit : % %d", 100 * total_profit, signal_count, 100 * total_profit / signal_count);
+				global_logger.info("Total Profit : % %d , Signal Count : %d, Average Profit : % %d", 100 * total_profit, signal_count, 100 * total_profit / signal_count);
 			};
 			
 			test();
