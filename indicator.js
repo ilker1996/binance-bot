@@ -131,17 +131,18 @@ class Indicator {
 		let stop_loss_price = 0;
 		let take_profit_price = 0;
 
-		if( isRed(open, close) && isThick(open, high, low, close) && rsi(candle_list.close) <= 15 )
+		if( isRed(open, close) && isThick(open, high, low, close) && rsi(candle_list.close) <= 10 )
 		{	
 			const buying_price = close_prices.last();
 			const low_price = low_prices.last();
+			const high_price = high_prices.last();
 
 			const stop_loss_multiplier = clamp(low_price / buying_price, 0.96, 0.99);
 			const take_profit_multiplier = 1 + 2 * Math.abs(1 - stop_loss_multiplier);
 
 			signal = signal_type.LONG;
-			stop_loss_price = buying_price * stop_loss_multiplier;
-			take_profit_price = buying_price * take_profit_multiplier;
+			take_profit_price = clamp(high_price, buying_price * 1.01, buying_price * 1.04);
+			stop_loss_price = clamp(low_price, buying_price * 0.96, buying_price * 0.99);
 		}
 		
 		return {

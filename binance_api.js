@@ -65,7 +65,7 @@ const get_available_coins = (currency="USDT") => {
 				return reject("Error occured fetching previous day statistics " + error);
 			} else {
 				const pairs = prev_stats
-							.filter(o => Number(o.quoteVolume) > 100000000 && Number(o.quoteVolume) < 100000000000)
+							.filter(o => Number(o.quoteVolume) > 1000000)
 							.map(o => o.symbol)
 							.filter(s => s.endsWith(currency))
 							.map(s => s.replace(currency, ""));
@@ -76,42 +76,88 @@ const get_available_coins = (currency="USDT") => {
 	});
 }
 
-const fetch_candles = (symbol, interval, options={}) => {
-	return new Promise((resolve, reject) => {
-		client.candlesticks(symbol, interval, (error, candles, symbol) => {
-			if (error) {
-				return reject("Error occured fetching candles " + error);
-			} else {
-				const new_candles = {
-					open_prices : [],
-					close_prices : [],
-					low_prices : [],
-					high_prices : [],
-					open_times : [],
-					close_times : [],
-				}
-				
-				const current_time = Date.now();
-				const latest_close_time = candles[candles.length - 1][6];
-			
-				// See if latest candle is closed already or not
-				const size = (current_time < latest_close_time) ? candles.length - 1 : candles.length;
-			
-				for(let i = 0; i < size; ++i) {
-					const [open_time, open, high, low, close, volume, close_time, asset_volume, trades, buy_base_volume, buy_asset_volume, ignored] = candles[i];
+const fetch_candles = (symbol, interval, market=market_type.SPOT, options={}) => {
+	if(market == market_type.SPOT) {
+		return new Promise((resolve, reject) => {
+			client.candlesticks(symbol, interval, (error, candles, symbol) => {
+				if (error) {
+					return reject("Error occured fetching candles " + error);
+				} else {
+					const new_candles = {
+						open_prices : [],
+						close_prices : [],
+						low_prices : [],
+						high_prices : [],
+						open_times : [],
+						close_times : [],
+					}
 					
-					new_candles.open_prices[i] = Number(open);
-					new_candles.close_prices[i] = Number(close);
-					new_candles.low_prices[i] = Number(low);
-					new_candles.high_prices[i] = Number(high);
-					new_candles.open_times[i] = open_time;
-					new_candles.close_times[i] = close_time;
-				}
+					const current_time = Date.now();
+					const latest_close_time = candles[candles.length - 1][6];
+				
+					// See if latest candle is closed already or not
+					const size = (current_time < latest_close_time) ? candles.length - 1 : candles.length;
+				
+					for(let i = 0; i < size; ++i) {
+						const [open_time, open, high, low, close, volume, close_time, asset_volume, trades, buy_base_volume, buy_asset_volume, ignored] = candles[i];
+						
+						new_candles.open_prices[i] = Number(open);
+						new_candles.close_prices[i] = Number(close);
+						new_candles.low_prices[i] = Number(low);
+						new_candles.high_prices[i] = Number(high);
+						new_candles.open_times[i] = open_time;
+						new_candles.close_times[i] = close_time;
+					}
 
-				return resolve(new_candles);
-			}
-		}, options);
-	});
+					return resolve(new_candles);
+				}
+			}, options);
+		});
+	}
+	else if(market == market_type.FUTURES) {
+		return new Promise((resolve, reject) => {
+			client.futuresCandles(symbol, interval, options)
+			.then(
+				(candles) => {
+					const new_candles = {
+						open_prices : [],
+						close_prices : [],
+						low_prices : [],
+						high_prices : [],
+						open_times : [],
+						close_times : [],
+					}
+					
+					const current_time = Date.now();
+					const latest_close_time = candles[candles.length - 1][6];
+				
+					// See if latest candle is closed already or not
+					const size = (current_time < latest_close_time) ? candles.length - 1 : candles.length;
+				
+					for(let i = 0; i < size; ++i) {
+						const [open_time, open, high, low, close, volume, close_time, asset_volume, trades, buy_base_volume, buy_asset_volume, ignored] = candles[i];
+						
+						new_candles.open_prices[i] = Number(open);
+						new_candles.close_prices[i] = Number(close);
+						new_candles.low_prices[i] = Number(low);
+						new_candles.high_prices[i] = Number(high);
+						new_candles.open_times[i] = open_time;
+						new_candles.close_times[i] = close_time;
+					}
+	
+					return resolve(new_candles);
+				},
+				(error) => {
+					return reject("Error occured fetching candles : " + error);
+				}
+			).catch((error) => {
+				return reject("Error occured fetching candles : " + error);
+			});
+		});
+	}
+	else {
+		return reject("Error recognizing the market " + market);
+	}
 }
 
 const listen_candles_stream = (symbol, interval, market=market_type.SPOT, onUpdate=()=>{}, onStreamStart=()=>{}) => {
@@ -142,7 +188,7 @@ const listen_candles_stream = (symbol, interval, market=market_type.SPOT, onUpda
 		client.websockets.candlesticks(symbol, interval, ticker, onStreamStart);
 	} 
 	else if(market == market_type.FUTURES) {
-		client.futuresSubscribe(symbol.toString().toLowerCase() + "@kline_" + interval.toString(), ticker, onStreamStart);
+		client.futuresCandlesticks(symbol, interval, ticker, onStreamStart);
 	}
 }
 
@@ -181,7 +227,7 @@ const get_available_balance = (currency="USDT") => {
 }
 
 // Calculates how much of the asset(coin) the user's balance can buy within the balance limit.
-const calculate_buy_quantity = (buying_price, trading_currency="USDT", balance_limit=10, filter={}, test=true) => {
+const calculate_buy_quantity = (buying_price, trading_currency="USDT", balance_limit=20, filter={}, test=true) => {
 	// ****** FILTERS *******
 	// 	status: 'TRADING',
 	// 	min_price: 0.01,
@@ -217,14 +263,14 @@ const calculate_buy_quantity = (buying_price, trading_currency="USDT", balance_l
 			});
 		}
 		
-		const min_balance = filter?.min_notional ? Number(filter?.min_notional) : balance_limit;
+		const min_balance = (filter?.min_notional != undefined) ? Number(filter.min_notional) : balance_limit;
 		if(buying_balance >= min_balance) {
 			const coin_price = clamp(buying_price, Number(filter.min_price), Number(filter.max_price));
 			const quantity = clamp(buying_balance / coin_price, Number(filter.min_quantity), Number(filter.max_quantity));
 			
 			console.log(buying_balance / coin_price, Number(filter.min_quantity), Number(filter.max_quantity));
-			const price_digit = filter?.price_digit ? Number(filter.price_digit) : 4;
-			const quantity_digit = filter?.quantity_digit ? Number(filter.quantity_digit) : 4;
+			const price_digit = (filter?.price_digit != undefined) ? Number(filter.price_digit) : 8;
+			const quantity_digit = (filter?.quantity_digit != undefined) ? Number(filter.quantity_digit) : 8;
 
 			console.log("Balance : %d, Price : %d, Quantity : %d ", buying_balance, coin_price, quantity);
 			console.log("Calculated price : %d, calculated quantity : %d ", parseFloat(coin_price.toFixed(price_digit)), parseFloat(quantity.toFixed(quantity_digit)));

@@ -20,7 +20,7 @@ const session_type = {
 
 const global_logger = add_logger("GLOBAL", config.log_dir + "_" + config.indicator_names.join('-'));
 
-function start_spot_trade(pair, interval, logger, tracker, signaler) {
+function start_trade(pair, interval, logger, tracker, signaler, market_type) {
 	let candles = null;
 
 	const onStreamStart = async () => {
@@ -39,7 +39,7 @@ function start_spot_trade(pair, interval, logger, tracker, signaler) {
 		logger.info("Subscribed to %s candle stream", pair);
 	}
 
-	api.listen_candles_stream(pair, interval, api.market_type.SPOT, (open, close, low, high, event_time, isFinal) => {
+	api.listen_candles_stream(pair, interval, market_type, (open, close, low, high, event_time, isFinal) => {
 		if(candles) {
 			signaler.feed(open, close, low, high, event_time, isFinal);
 			tracker.feed(close);
@@ -64,8 +64,6 @@ function run(test=true) {
 			for(let coin of config.coins)
 			{
 				const pair_name = coin.concat(config.currency);
-
-				global_logger.info("Starting the bot for %s...", pair_name);
 
 				const filter = filters[pair_name];
 
@@ -100,7 +98,7 @@ function run(test=true) {
 
 				const signaler = new Signaler(pair_name, config.tick_round, config.indicator_names, filter.price_digit, tracker, pair_logger);
 				
-				(config.market_type === api.market_type.SPOT) && start_spot_trade(pair_name, config.interval, pair_logger, tracker, signaler);
+				start_trade(pair_name, config.interval, pair_logger, tracker, signaler, config.market_type);
 			}
 		},
 		(error) => global_logger.error(error)
@@ -130,12 +128,12 @@ connectivity((online) => {
 
 					const day_in_ms = 86400000 * 3; // 3 day in between
 
-					let start_time = new Date("08/01/2020 03:00:00").getTime();
+					let start_time = new Date("01/08/2020 03:00:00").getTime();
 					let current_time = new Date("05/01/2021 03:00:00").getTime();
 
 					while(start_time < current_time) {
 						const end_time = start_time + day_in_ms;
-						await backtest(pair_name, config.interval, config.indicator_names, start_time, end_time, onProfit);
+						await backtest(pair_name, config.interval, config.market_type, config.indicator_names, start_time, end_time, onProfit);
 						start_time = end_time;
 					}
 				}
