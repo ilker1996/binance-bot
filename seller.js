@@ -1,4 +1,4 @@
-const binance_api = require('./binance_api')
+const api = require('./api')
 
 class Seller {
     constructor(logger, test) {
@@ -8,7 +8,7 @@ class Seller {
 
     sell(pair, price, quantity, onSuccessfulSell) {
         if(!this.test) {
-            binance_api.spot_market_sell(pair, price, quantity,
+            api.spot_market_sell(pair, price, quantity,
                 onSuccessfulSell,
                 (error) => this.logger.error("Error occured during market sell for price : %d and quantity : %d , %s", price, quantity, error)
             );

@@ -1,21 +1,12 @@
 // ************* Functions for Binance API ******************* 
 const Binance = require('node-binance-api');
 
-const market_type = {
-	SPOT: "spot",
-	FUTURES: "futures",
-}
+const {market_type, clamp} = require('../utils');
 
 let client = new Binance();
 
-const clamp = (number, min, max) => {
-	const tmp_min = min ? min : number;
-	const tmp_max = max ? max : number;
-	return Math.max(tmp_min, Math.min(number, tmp_max));
-}
-
 const authenticate_user = () => {
-	const BINANCE_API_KEY = require("./binance_secrets.json");
+	const BINANCE_API_KEY = require("../binance_secrets.json");
 
 	client = new Binance({
 		APIKEY: BINANCE_API_KEY.api_key,

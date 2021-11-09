@@ -1,48 +1,21 @@
 const { EMA, SMA, MACD, RSI, HeikinAshi } = require('technicalindicators');
 
-const signal_type = {
-	SHORT: -1,
-	LONG: 1,
-	NONE: 0
-}
+const { signal_type, clamp } = require('./utils');
 
 if (!Array.prototype.last){
-    Array.prototype.last = function(){
-        return this[this.length - 1];
-    };
+	Array.prototype.last = function(){
+		return this[this.length - 1];
+	};
 };
-
-const clamp = (number, min, max) => {
-	const tmp_min = min ? min : number;
-	const tmp_max = max ? max : number;
-	return Math.max(tmp_min, Math.min(number, tmp_max));
-}
 
 const zip = (a, b, c, d) => a.map((k, i) => [k, b[i], c[i], d[i]]);
 
 const rsi = (values) => RSI.calculate({period: 14, values}).slice(-1)[0];
 
 class Indicator {
-    constructor(indicator_names, precision) {
+	constructor(precision) {
 		this.precision = precision;
-
-		this.indicator_map = {
-			"ema_6_12" : this.ema_crossover_6_12,
-			"sma_6_12" : this.sma_crossover_6_12,
-			"heikinashi" : this.heikinashi,
-		}
-
-		this.indicator_function = (open_prices, close_prices, low_prices, high_prices) => {
-			for(let name of indicator_names) {
- 				if(this.indicator_map[name]) {
-					const result = this.indicator_map[name](open_prices, close_prices, low_prices, high_prices, this.precision);
-					if(result.signal != signal_type.NONE) return result;
-				}
-			}
-
-			return signal_type.NONE;
-		}	
-    }
+	}
 
 	ema_crossover_6_12(open_prices, close_prices, low_prices, high_prices, price_digit) {
 		const precise = (number) => parseFloat(number.toFixed(price_digit));
@@ -152,9 +125,10 @@ class Indicator {
 		};
 	}
 
-    test(open_prices, close_prices, low_prices, high_prices) {
-		return this.indicator_function(open_prices, close_prices, low_prices, high_prices);
-    }
+	test(open_prices, close_prices, low_prices, high_prices) {
+		const result = this.heikinashi(open_prices, close_prices, low_prices, high_prices);
+		return result;
+	}
 }
 
 exports.Indicator = Indicator;

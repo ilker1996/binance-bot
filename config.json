@@ -6,10 +6,6 @@
     "interval" : "15m",
     "balance_limit" : 20,
     "tick_round" : 1,
-    "stop_loss_multiplier" : 0.99,
-    "profit_multiplier" : 1.015,
-    "take_profit_multiplier" : 1.015,
-    "indicator_names" : ["heikinashi"],
     "coins" : 
         [
             "1INCH",

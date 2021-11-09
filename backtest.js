@@ -1,9 +1,8 @@
-const binance_api = require('./binance_api');
-
-const { test_logger } = require('./logger')
-
 const retry = require('async-retry');
-const { Indicator, signal_type } = require('./indicator');
+const api = require('./api');
+const { test_logger } = require('./logger')
+const { Indicator } = require('./indicator');
+const { signal_type } = require('./utils');
 
 const precise = (x) => parseFloat(x.toFixed(4));
 
@@ -34,16 +33,16 @@ const calculate_profit = (high_prices, low_prices, buying_price, buying_time, st
 	return profit;
 }
 
-const backtest = async (pair, interval, market, indicator_names, start_time, end_time, onProfit) => {
+const backtest = async (pair, interval, market, start_time, end_time, onProfit) => {
 	const logger = test_logger(pair);
 
-	const indicator = new Indicator(indicator_names, 6);
+	const indicator = new Indicator(6);
 	
 	const time = new Date(start_time).toLocaleDateString();
 	console.log(time)
 	let candles = null;
 
-	await retry(async bail => await binance_api.fetch_candles(pair, interval, market, { limit : 1000, startTime: start_time }), { maxTimeout : 2000, retries: 10 })
+	await retry(async bail => await api.fetch_candles(pair, interval, market, { limit : 1000, startTime: start_time }), { maxTimeout : 2000, retries: 10 })
 	.then(
 		(data) => candles = data,
 		(error) => console.error(error)
@@ -71,7 +70,7 @@ const backtest = async (pair, interval, market, indicator_names, start_time, end
 					let candles_1m = null;
 
 					try{
-						candles_1m = await retry(async bail => await binance_api.fetch_candles(pair, "1m", market, { limit : 1000, startTime : buying_time }), { maxTimeout : 2000, retries: 10 });
+						candles_1m = await retry(async bail => await api.fetch_candles(pair, "1m", market, { limit : 1000, startTime : buying_time }), { maxTimeout : 2000, retries: 10 });
 					} catch(error) {
 						logger.error(pair + " " + error);
 					}

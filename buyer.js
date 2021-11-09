@@ -1,4 +1,4 @@
-const binance_api = require('./binance_api')
+const api = require('./api')
 
 class Buyer {
     constructor(trading_currency, balance_limit, filter, logger, test) {
@@ -13,11 +13,11 @@ class Buyer {
     }
 
     buy(pair, buying_price, onSuccessfulBuy) {
-        binance_api.calculate_buy_quantity(buying_price, this.trading_currency, this.balance_limit, this.filter, this.test)
+        api.calculate_buy_quantity(buying_price, this.trading_currency, this.balance_limit, this.filter, this.test)
         .then(
             ({price, quantity}) => {
                 if(!this.test) {
-                    binance_api.spot_market_buy(pair, price, quantity,
+                    api.spot_market_buy(pair, price, quantity,
                         onSuccessfulBuy,
                         (error) => this.logger.error("Error occured during Market Buy for price : %d and quantity : %d , %s", price, quantity, error)
                     );

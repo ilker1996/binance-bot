@@ -1,13 +1,20 @@
-const { Indicator, signal_type } = require("./indicator");
+const { Indicator } = require("./indicator");
+const { signal_type } = require('./utils');
 
+
+if(!Array.prototype.last) {
+    Array.prototype.last = function() {
+        return this[this.length - 1];
+    }
+}
 class Signaler {
-    constructor(pair, tick_round, indicator_names, price_digit, tracker, logger) {
+    constructor(pair, tick_round, price_digit, tracker, logger) {
         this.pair = pair;
 
         this.tracker = tracker;
         this.logger = logger;
 
-        this.indicator = new Indicator(indicator_names, price_digit);
+        this.indicator = new Indicator(price_digit);
        
         this.tick_round = tick_round;
         this.tick_count = 0;
@@ -67,7 +74,7 @@ class Signaler {
                 take_profit_price
             } = this.indicator.test(open_prices, close_prices, low_prices, high_prices);
 
-            if(!this.skip_long_signal && signal == signal_type.LONG && isFinal) {
+            if(!this.skip_long_signal && signal == signal_type.LONG) {
                 this.tracker.long_signal(close, stop_loss_price, take_profit_price);
                 this.skip_long_signal = true;
             } else if(!this.skip_short_signal && signal == signal_type.SHORT) {
@@ -80,12 +87,6 @@ class Signaler {
             this.add_candle(open, close, low, high, event_time);
             this.reset();
         }
-    }
-}
-
-if(!Array.prototype.last) {
-    Array.prototype.last = function() {
-        return this[this.length - 1];
     }
 }
 

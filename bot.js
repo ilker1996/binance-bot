@@ -1,24 +1,18 @@
 const connectivity = require('connectivity');
 const retry = require('async-retry');
 
-const api = require('./binance_api');
-
+const api = require('./api');
 const { backtest } = require('./backtest');
 const { add_logger } = require('./logger');
 const { Signaler } = require('./signaler');
 const { Tracker } = require('./tracker');
 const { Buyer } = require('./buyer');
 const { Seller } = require('./seller');
+const { session_type } = require('./utils');
 
 const config = require("./config.json");
 
-const session_type = {
-	BACKTEST: "backtest",
-	LIVETEST: "livetest",
-	TRADE: "trade",
-}
-
-const global_logger = add_logger("GLOBAL", config.log_dir + "_" + config.indicator_names.join('-'));
+const global_logger = add_logger("GLOBAL", config.log_dir);
 
 function start_trade(pair, interval, logger, tracker, signaler, market_type) {
 	let candles = null;
@@ -67,7 +61,7 @@ function run(test=true) {
 
 				const filter = filters[pair_name];
 
-				const pair_logger = add_logger(pair_name, config.log_dir + "_" + config.indicator_names.join('-'));
+				const pair_logger = add_logger(pair_name, config.log_dir);
 
 				const buyer = new Buyer(config.currency, config.balance_limit, filter, pair_logger, test);
 				const seller = new Seller(pair_logger, test);
@@ -96,7 +90,7 @@ function run(test=true) {
 
 				const tracker = new Tracker(pair_name, buyer, seller, pair_logger, buy_callback, sell_callback);
 
-				const signaler = new Signaler(pair_name, config.tick_round, config.indicator_names, filter.price_digit, tracker, pair_logger);
+				const signaler = new Signaler(pair_name, config.tick_round, filter.price_digit, tracker, pair_logger);
 				
 				start_trade(pair_name, config.interval, pair_logger, tracker, signaler, config.market_type);
 			}
@@ -133,7 +127,7 @@ connectivity((online) => {
 
 					while(start_time < current_time) {
 						const end_time = start_time + day_in_ms;
-						await backtest(pair_name, config.interval, config.market_type, config.indicator_names, start_time, end_time, onProfit);
+						await backtest(pair_name, config.interval, config.market_type, start_time, end_time, onProfit);
 						start_time = end_time;
 					}
 				}
