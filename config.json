@@ -1,5 +1,6 @@
 {
     "session_type" : "livetest",
+    "platform" : "Binance",
     "market_type" : "spot",
     "log_dir" : "logs/livetest/15m_spot_rsi_15",
     "currency" : "USDT",
